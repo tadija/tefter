@@ -16,6 +16,9 @@ enum Tefter {
             try files.createDirectory(at: home.appendingPathComponent(path), withIntermediateDirectories: true,
                                       attributes: [.posixPermissions: 0o700])
         }
+        let lock = open(home.appendingPathComponent("runtime/instance.lock").path, O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard lock >= 0, flock(lock, LOCK_EX | LOCK_NB) == 0 else { throw ConfigurationError.instanceInUse }
+        defer { close(lock) }
         let identity = try Identity(home: home)
         let args = Array(CommandLine.arguments.dropFirst())
         if !args.isEmpty {
@@ -46,6 +49,7 @@ enum Tefter {
         registerIdentity(router, identity)
         registerMemberships(router, identity)
         registerDocuments(router, identity)
+        registerCollaboration(router, identity)
         router.get("/api/v1/health") { _, _ in Health(status: "ok") }
         router.get("/api/v1/ready") { _, _ in Health(status: "ready") }
         router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))
@@ -53,5 +57,5 @@ enum Tefter {
         try await app.runService()
     }
 
-    enum ConfigurationError: Error { case invalidAssetsOrPort, invalidCommand }
+    enum ConfigurationError: Error { case invalidAssetsOrPort, invalidCommand, instanceInUse }
 }

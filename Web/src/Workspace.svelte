@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { marked } from 'marked'
   import DOMPurify from 'dompurify'
+  import Comments from './Comments.svelte'
   import { api } from './api'
   let {space}: {space:string} = $props()
   type Doc = {path:string; revision:string; id?:string; type:string; title:string; status?:string; sprint?:string; release?:string; url?:string}
@@ -12,10 +13,12 @@
   let kind = $state('doc'), title = $state(''), url = $state(''), status = $state('todo'), sprint = $state(''), release = $state(''), assignee = $state('')
   let mode = $state('Files'), read = $state(false), filter = $state('')
   let people = $state<{id:string;name:string}[]>([])
+  let user=$state(''),query=$state(''),allSpaces=$state(false),searched=$state(false)
+  let hits=$state<{space:string;path:string;title:string}[]>([])
   const base = () => 'spaces/'+space+'/'
   async function run(work:()=>Promise<void>) { error=''; try { await work() } catch(e) { error=String(e) } }
   async function refresh() { tree = await api<Tree>(base()+'tree') }
-  onMount(async()=>{ await run(async()=>{ await refresh(); people=(await api<{people:typeof people}>(base()+'people')).people }); loading=false })
+  onMount(async()=>{ await run(async()=>{ await refresh(); user=(await api<{user:string}>('session')).user; people=(await api<{people:typeof people}>(base()+'people')).people }); loading=false })
   function clear() { path=''; body=''; selected=undefined; revision=undefined; title=''; url=''; assignee=''; sprint=''; release=''; read=false; kind='doc' }
   async function open(doc:Doc) {
     await run(async()=>{ const file=await api<{document:Doc;text:string}>(base()+'file?path='+encodeURIComponent(doc.path)); selected=file.document; path=doc.path; revision=file.document.revision; body=file.text; read=true })
@@ -43,10 +46,14 @@
 
 {#if error}<p role="alert">{error}</p>{/if}
 {#if loading}<p role="status">Loading workspace…</p>{:else}
-<nav aria-label="Views">{#each ['Files','Kanban','Tasks','Backlog','Sprints','Releases','URLs','People'] as tab}<button aria-pressed={mode===tab} onclick={()=>mode=tab}>{tab}</button>{/each}</nav>
+<nav aria-label="Views">{#each ['Files','Kanban','Tasks','Backlog','Sprints','Releases','URLs','People','Search'] as tab}<button aria-pressed={mode===tab} onclick={()=>mode=tab}>{tab}</button>{/each}</nav>
 <div class="workspace">
 <aside>
-{#if mode==='People'}<h2>People</h2>{#each people as p}<p>{p.name}</p>{/each}
+{#if mode==='Search'}
+<form onsubmit={(e)=>{e.preventDefault();run(async()=>{hits=(await api<{hits:typeof hits}>(base()+'search','POST',{query,allSpaces})).hits;searched=true})}}>
+<label>Search content and comments <input bind:value={query} required/></label><label><input type="checkbox" bind:checked={allSpaces}/> All accessible spaces</label><button>Search</button></form>
+{#each hits as hit}<p>{hit.title} · {hit.path} · {hit.space}</p>{:else}{#if searched}<p>No matches.</p>{/if}{/each}
+{:else if mode==='People'}<h2>People</h2>{#each people as p}<p>{p.name}</p>{/each}
 {:else}
 <label>Filter <input bind:value={filter}/></label>
 {#if mode==='Files'}
@@ -64,6 +71,8 @@
 </aside>
 <section>
 <button onclick={clear}>New file</button>
+<a href={'/api/v1/'+base()+'export'} download>Export space</a>
+<button onclick={()=>run(async()=>{await api(base()+'rescan','POST');await refresh()})}>Rescan</button>
 {#if selected}<h2>{selected.title}</h2><button onclick={()=>read=!read}>{read?'Edit Markdown':'Preview'}</button>{/if}
 {#if selected&&read}<article>{@html preview(body.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,''))}</article>
 {:else}
@@ -82,6 +91,7 @@
 {#if selected}<details><summary>Move or delete file</summary><label>Destination <input bind:value={dest}/></label>
 <button onclick={()=>run(async()=>{await api(base()+'move','POST',{path,revision,destination:dest});clear();await refresh()})}>Move</button>
 <button onclick={()=>run(async()=>{if(confirm('Delete '+path+'?')){await api(base()+'delete','POST',{path,revision});clear();await refresh()}})}>Delete</button></details>{/if}
+{#if selected}{#key selected.path}<Comments base={base()} path={selected.path} {user}/>{/key}{/if}
 </section></div>{/if}
 
 <style>
