@@ -1,5 +1,6 @@
 import Foundation
 import Hummingbird
+import HummingbirdWebSocket
 
 #if os(Linux)
   import Glibc
@@ -102,6 +103,7 @@ enum Tefter {
     router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))
     let app = Application(
       router: router,
+      server: .http1WebSocketUpgrade(webSocketRouter: commsSocketRouter(identity), configuration: .init(maxFrameSize: 32768, closeTimeout: .seconds(2), validateUTF8: true)),
       configuration: .init(address: .hostname(settings["TEFTER_HOST"] ?? "127.0.0.1", port: port)))
     let history = Task { await identity.checkpointLoop() }
     do { try await app.runService() } catch {

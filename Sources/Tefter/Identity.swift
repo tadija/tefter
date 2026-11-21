@@ -25,6 +25,7 @@ struct Space: ResponseCodable {
 }
 
 actor Identity {
+  var socketCounts: [String: Int] = [:]
   var indexedSpaces = Set<String>()
   let previews = PreviewWorker()
   let settings: [String: String]
