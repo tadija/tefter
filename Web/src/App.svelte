@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import Account from './Account.svelte'
   import Workspace from './Workspace.svelte'
   import { api } from './api'
   type Space = { id: string; name: string; role: string }
   let spaces = $state<Space[]>([])
   let selected = $state('')
+  let user=$state(''), recovery=$state('')
   let email = $state('')
   let password = $state('')
   let error = $state('')
@@ -12,12 +14,14 @@
   let signedIn = $state(false)
 
   async function load() {
+    user = (await api<{user:string}>('session')).user
     spaces = (await api<{ spaces: Space[] }>('spaces')).spaces
-    selected = spaces[0]?.id ?? ''
+    if(!spaces.some(s=>s.id===selected)) selected = spaces[0]?.id ?? ''
     signedIn = true
   }
   onMount(async () => {
-    try { await api('session'); await load() }
+    if(location.hash.startsWith('#recover=')){ recovery=location.hash.slice(9);history.replaceState(null,'',location.pathname);busy=false;return }
+    try { await load() }
     catch (e) { if (!String(e).includes('(401)')) error = String(e) }
     finally { busy = false }
   })
@@ -38,6 +42,8 @@
 <header><h1>Tefter</h1>{#if signedIn}<button onclick={logout}>Sign out</button>{/if}</header>
 {#if error}<p role="alert">{error}</p>{/if}
 {#if busy}<p role="status">Loading…</p>
+{:else if recovery}
+<form onsubmit={async(e)=>{e.preventDefault();try{await api('recovery/redeem','POST',{token:recovery,password});password='';recovery='';error=''}catch(e){error=String(e)}}}><label>New password <input type="password" minlength="12" required bind:value={password} autocomplete="new-password"/></label><button>Set password</button></form>
 {:else if !signedIn}
   <form onsubmit={login}>
     <label>Email <input type="email" bind:value={email} required autocomplete="username"/></label>
@@ -45,6 +51,7 @@
     <button>Sign in</button>
   </form>
 {:else}
+  <Account {user} {spaces} reload={load} signedOut={()=>{signedIn=false;spaces=[];selected=''}}/>
   <label>Space <select bind:value={selected}>{#each spaces as space}<option value={space.id}>{space.name}</option>{/each}</select></label>
   {#if selected}{#key selected}<Workspace space={selected}/>{/key}{/if}
 {/if}

@@ -74,6 +74,7 @@ extension Identity {
 
     func people(_ id: String, user: String) throws -> People {
         _ = try access(id,user: user)
+        try syncProfiles(id)
         return People(people: try db.rows("SELECT users.id,email FROM users JOIN members ON members.user=users.id WHERE space=? ORDER BY email", [id]).map { Named(id: $0["id"]!, name: $0["email"]!) })
     }
 }

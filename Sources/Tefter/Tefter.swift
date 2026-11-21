@@ -47,6 +47,7 @@ enum Tefter {
         }
         let router = Router()
         registerIdentity(router, identity)
+        registerRecovery(router, identity)
         registerMemberships(router, identity)
         registerDocuments(router, identity)
         registerCollaboration(router, identity)
@@ -54,6 +55,8 @@ enum Tefter {
         router.get("/api/v1/ready") { _, _ in Health(status: "ready") }
         router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))
         let app = Application(router: router, configuration: .init(address: .hostname(env["TEFTER_HOST"] ?? "127.0.0.1", port: port)))
+        let history = Task { await identity.checkpointLoop() }
+        defer { history.cancel() }
         try await app.runService()
     }
 

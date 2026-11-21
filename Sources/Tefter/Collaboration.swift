@@ -126,6 +126,11 @@ extension Identity {
 
 func registerCollaboration(_ router: Router<BasicRequestContext>, _ identity: Identity) {
     let group = router.group("/api/v1/spaces/:space")
+    group.get("views") { req,ctx in try await identity.views(ctx.parameters.require("space"),request:req) }
+    group.put("views") { req,ctx in
+        let update = try await req.decode(as:ViewSettings.self,context:ctx)
+        return try await identity.views(ctx.parameters.require("space"),request:req,update:update)
+    }
     group.get("export") { req,ctx in try await identity.export(ctx.parameters.require("space"),folder: req.uri.queryParameters.get("folder"),request: req) }
     group.get("comments") { req,ctx in try await identity.comments(ctx.parameters.require("space"),path: req.uri.queryParameters.require("path"),request: req) }
     group.post("comments") { req,ctx in

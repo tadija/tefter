@@ -36,3 +36,7 @@ TEFTER_HOME=/private/tefter-restored swift run tefter
 ```
 
 Sign in, open a known document and search for a known comment. `python3 Tests/collaboration.py` exercises this round trip with a temporary installation.
+
+URL previews use libcurl 7.85+ and SwiftSoup. Linux builds need libcurl development headers (Debian: `libcurl4-openssl-dev`). The transport checks the concrete peer address before opening every socket, disables proxies, bounds transfer size and elapsed time, and limits redirects. Unavailable previews leave the saved URL and notes readable. Git must be available at /usr/bin/git. Private checkpoints are rebuilt from eligible durable files every 30 seconds and on startup under runtime/history.
+
+Optional administrator-initiated password setup/recovery mail uses `TEFTER_SMTP_URL` (smtp with STARTTLS or smtps), `TEFTER_SMTP_FROM`, `TEFTER_PUBLIC_URL` (HTTPS), and optional `TEFTER_SMTP_USER` and `TEFTER_SMTP_PASSWORD`. Keep credentials in a protected service environment file. Links expire after 30 minutes and are single-use. Offline bootstrap and recovery work with the server stopped.

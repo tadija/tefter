@@ -162,6 +162,9 @@ extension Identity {
                 }
                 if let assignee = doc.assignee, !(try people(space,user: user).people.contains { $0.id == assignee }) { throw HTTPError(.unprocessableContent) }
                 try dir.write(name,data: data,replacing: old != nil)
+                if doc.type == "url", doc.url != old?.url {
+                    Task { _ = try? await enrich(doc,space:space,user:user) }
+                }
             case "move":
                 guard old != nil, let dest = change.destination, dest.lowercased().hasSuffix(".md") else { throw HTTPError(.badRequest) }
                 let (target,newName) = try root.parent(dest)
@@ -188,6 +191,7 @@ extension Identity {
 
 func registerDocuments(_ router: Router<BasicRequestContext>, _ identity: Identity) {
     let group = router.group("/api/v1/spaces/:space")
+    group.post("preview") { req,ctx in try await identity.preview(ctx.parameters.require("space"),path:req.uri.queryParameters.require("path"),request:req) }
     group.get("tree") { req,ctx in try await identity.tree(ctx.parameters.require("space"),request: req) }
     group.get("file") { req,ctx in
         try await identity.file(ctx.parameters.require("space"),path: req.uri.queryParameters.require("path"),request: req)

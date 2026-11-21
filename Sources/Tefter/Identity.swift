@@ -19,6 +19,7 @@ struct Space: ResponseCodable {
 }
 
 actor Identity {
+    let previews = PreviewWorker()
     let db: Database
     let home: URL
     private let dummyHash: String
@@ -35,6 +36,7 @@ actor Identity {
             "CREATE TABLE IF NOT EXISTS members(space TEXT REFERENCES spaces,user TEXT REFERENCES users,role TEXT NOT NULL CHECK(role IN ('owner','admin','member')),PRIMARY KEY(space,user))",
             "CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user TEXT NOT NULL REFERENCES users,csrf TEXT NOT NULL,expires INTEGER NOT NULL)",
             "CREATE TABLE IF NOT EXISTS attempts(email TEXT PRIMARY KEY,count INTEGER NOT NULL,start INTEGER NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS recovery(user TEXT PRIMARY KEY REFERENCES users,digest TEXT UNIQUE NOT NULL,expires INTEGER NOT NULL)",
             "CREATE TABLE IF NOT EXISTS audit(time INTEGER NOT NULL DEFAULT (unixepoch()),actor TEXT NOT NULL,event TEXT NOT NULL,target TEXT NOT NULL)"
         ] { try db.execute(sql) }
     }
@@ -63,7 +65,7 @@ actor Identity {
         if let actor { try requireAdmin(actor) }
         else if !(try db.rows("SELECT id FROM users LIMIT 1")).isEmpty { throw HTTPError(.conflict) }
         let email = credentials.email.lowercased()
-        guard email.contains("@"), email.utf8.count <= 254, !email.contains("\0") else { throw HTTPError(.badRequest) }
+        guard Self.emailValid(email) else { throw HTTPError(.badRequest) }
         let password = try Self.hash(credentials.password)
         let id = UUID().uuidString
         let space = UUID().uuidString
@@ -119,6 +121,7 @@ actor Identity {
         try db.transaction {
             try db.execute("UPDATE users SET password=? WHERE id=?", [hash,user])
             try db.execute("DELETE FROM sessions WHERE user=?", [user])
+            try db.execute("DELETE FROM recovery WHERE user=?", [user])
             try db.execute("DELETE FROM attempts WHERE email=?", [email.lowercased()])
             try audit(actor,"reset-password",user)
         }
