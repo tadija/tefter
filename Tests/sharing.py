@@ -68,6 +68,29 @@ class Sharing(Workspace):
         self.start()
         self.call('GET',dst+'references/'+allowed['id'],session=b,expected=404)
 
+    def test_external_swap_cannot_authorize_stale_index_rows(self):
+        from pathlib import Path
+        import uuid
+        a=self.admin
+        source=self.call('GET','spaces',session=a)[1]['spaces'][0]['id']
+        self.call('POST','users',{'email':'swap@test.org','password':self.password},a)
+        b=self.login('swap@test.org')
+        target=self.call('GET','spaces',session=b)[1]['spaces'][0]['id']
+        src,dst=f'spaces/{source}/',f'spaces/{target}/'
+        for path,title,text in [('shared.md','Public','publicneedle'),('private.md','Confidential title','privateneedle')]:
+            markdown=f'---\nid: {uuid.uuid4()}\ntype: task\ntitle: {title}\nstatus: todo\n---\n{text}'
+            self.call('POST',src+'write',{'path':path,'text':markdown},a,204)
+        grant=self.call('POST',src+'shares',{'path':'shared.md','target':target,'allowExport':False},a)[1]
+        self.call('POST',dst+'references',{'grant':grant['id']},b)
+        self.assertEqual(self.call('POST',dst+'search',{'query':'privateneedle'},b)[1]['hits'],[])
+        root=Path(self.home.name)/'content/spaces'/source
+        (root/'shared.md').rename(root/'temporary.md')
+        (root/'private.md').rename(root/'shared.md')
+        (root/'temporary.md').rename(root/'private.md')
+        self.assertEqual(self.call('POST',dst+'search',{'query':'privateneedle'},b)[1]['hits'],[])
+        hits=self.call('POST',dst+'search',{'query':'publicneedle'},b)[1]['hits']
+        self.assertEqual([(h['title'],h['path']) for h in hits],[('Public','private.md')])
+
     def export(self,path,session,status=200):
         conn = http.client.HTTPConnection('127.0.0.1',self.port,timeout=5)
         try:

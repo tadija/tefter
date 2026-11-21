@@ -146,10 +146,15 @@ extension Identity {
     // Resolve every reference against operational grants on every request. Never
     // treat the disposable FTS index or portable reference file as authorization.
     var shared: [(target: String, ref: SharedReference, doc: Document)] = []
+    var refreshedSources = Set<String>()
     for target in spaces {
       for ref in try referenceFiles(target) {
         guard let (_, source, file) = try? resolveReference(ref) else { continue }
-        if !indexedSpaces.contains(ref.source) { try rebuildIndex(ref.source, root: source) }
+        // Paths alone are not authorization identities. External moves can leave
+        // an old FTS row at the new path of an authorized entity.
+        if refreshedSources.insert(ref.source).inserted {
+          try rebuildIndex(ref.source, root: source)
+        }
         shared.append((target, ref, file.document))
       }
     }

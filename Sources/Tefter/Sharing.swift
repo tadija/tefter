@@ -119,7 +119,9 @@ extension Identity {
     guard let doc = try scan(source).documents.first(where: { $0.id == share.entity }) else {
       throw HTTPError(.notFound)
     }
-    return (share, source, try document(doc.path, root: source))
+    let file = try document(doc.path, root: source)
+    guard file.document.id == share.entity else { throw HTTPError(.conflict) }
+    return (share, source, file)
   }
 
   func references(_ space: String, request: Request) throws -> ReferenceList {
