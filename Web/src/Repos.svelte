@@ -4,6 +4,12 @@
   let { space }: { space: string } = $props();
   type Repo = { id: string; space?: string; name: string; location: string; description: string };
   let repos = $state<Repo[]>([]), error = $state(""), loading = $state(true);
+  let status = $state<Record<string, {available: boolean; branch?: string; head?: string; status?: string; commits?: string}>>({});
+  async function inspect(id: string, clone = false) {
+    error = "";
+    try { status[id] = await api(`spaces/${space}/repos/${id}/${clone ? "checkout" : "status"}`, clone ? "POST" : "GET"); }
+    catch(e) { error = String(e); }
+  }
   let name = $state(""), location = $state(""), description = $state("");
   async function load() {
     try {
@@ -31,6 +37,12 @@
   <article><h3>{repo.name}</h3><p>{repo.description}</p><code>{repo.location}</code>
     <p>{repo.space ? "Owned by this space" : "Installation repository · explicitly granted"}</p>
     <small>Reference: {repo.id}</small>
+    <button onclick={() => inspect(repo.id)}>Status and commits</button>
+    <button onclick={() => inspect(repo.id, true)}>Create separate checkout (installation admin)</button>
+    {#if status[repo.id]}{#if status[repo.id].available}
+      <p>Branch: {status[repo.id].branch} · Commit: {status[repo.id].head}</p>
+      <pre>{status[repo.id].status || "Clean checkout"}</pre><pre>{status[repo.id].commits}</pre>
+    {:else}<p>No checkout available.</p>{/if}{/if}
   </article>
 {/each}
 <form onsubmit={create}>

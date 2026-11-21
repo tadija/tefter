@@ -4,6 +4,8 @@ import os
 import shutil
 import http.client
 import json
+import subprocess
+import time
 from pathlib import Path
 from identity import Workspace
 
@@ -63,13 +65,43 @@ class Harness(Workspace):
         hid = harness['id']
         self.assertFalse(harness['capabilities']['resume'])
         self.assertFalse(harness['capabilities']['tty'])
-        request = {'connection':hid,'message':'Do not use tools. Reply exactly: stage-three-ready'}
+        source = Path(self.home.name)/'git-source'
+        source.mkdir()
+        def git(*args, at=source):
+            return subprocess.check_output(['/usr/bin/git','-c','user.name=Test','-c','user.email=test@example.test',*args],cwd=at,text=True).strip()
+        git('init','--initial-branch=main')
+        (source/'note.md').write_text('Original')
+        git('add','.'); git('commit','-m','Initial')
+        original = git('rev-parse','HEAD')
+        remote = Path(self.home.name)/'remote.git'
+        git('clone','--bare',str(source),str(remote))
+        rid = self.call('POST','repos',{'space':space,'name':'Git test','location':str(remote)},a)[1]['id']
+        self.call('POST',base+f'repos/{rid}/checkout',{},a)
+        request = {'connection':hid,'repo':rid,'message':'Do not use tools. Reply exactly: stage-three-ready'}
         self.call('POST',base+'executions',request,a,403)
         self.call('PUT',f'harnesses/{hid}/grants',{'space':space,'user':self.call('GET','session',session=a)[1]['user']},a,204)
         record = self.call('POST',base+'executions',request,a)[1]
         self.assertEqual(record['status'],'completed',record)
         self.assertIn('stage-three-ready',record['conversation'][-1]['text'])
         eid = record['id']
+        self.call('POST',base+f'executions/{eid}/worktree',{},a)
+        checkout = Path(self.home.name)/'repositories'/space/rid/'checkout'
+        worktree = checkout.parent/('session-'+eid)
+        (worktree/'note.md').write_text('Reviewed change')
+        git('add','.',at=worktree); git('commit','-m','Session change',at=worktree)
+        review = self.call('GET',base+f'executions/{eid}/review',session=a)[1]
+        self.assertIn('Reviewed change',review['diff'])
+        self.assertEqual(git('rev-parse','HEAD',at=checkout),original)
+        self.assertEqual(git('show-ref',at=remote),original+' refs/heads/main')
+        approval = dict(approve=False,head=review['head'],base=review['base'])
+        self.call('POST',base+f'executions/{eid}/merge',approval,a,400)
+        self.call('POST',base+f'executions/{eid}/merge',dict(approval,approve=True,base='stale'),a,409)
+        self.call('POST',base+f'executions/{eid}/merge',dict(approval,approve=True),a)
+        self.assertEqual(git('rev-parse','HEAD',at=checkout),review['head'])
+        self.assertEqual(git('show-ref',at=remote),original+' refs/heads/main')
+        after = self.call('GET',base+f'executions/{eid}/review',session=a)[1]
+        self.call('POST',base+f'executions/{eid}/push',dict(approve=True,head=after['head'],base=after['base']),a)
+        self.assertIn('refs/heads/tefter/'+eid,git('show-ref',at=remote))
         record = self.call('POST',base+f'executions/{eid}/messages',{'message':'Do not use tools. What exact phrase did you just reply with?'},a)[1]
         self.assertEqual(record['status'],'completed')
         self.assertIn('stage-three-ready',record['conversation'][-1]['text'])
