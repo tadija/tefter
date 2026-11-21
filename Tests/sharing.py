@@ -14,14 +14,19 @@ class Sharing(Workspace):
         target = self.call('GET','spaces',session=b)[1]['spaces'][0]['id']
         src, dst = f'spaces/{source}/', f'spaces/{target}/'
         self.call('POST',src+'write',{'path':'secret.md','text':'classified platypus'},a,204)
+        self.call('POST',src+'write',{'path':'unshared.md','text':'classified platypus forbidden'},a,204)
+        self.call('POST',src+'comments',{'path':'secret.md','revision':'initial','body':'source attribution'},a)
         grant = self.call('POST',src+'shares',{'path':'secret.md','target':target,'allowExport':False},a)[1]
         self.call('POST',dst+'references',{'grant':grant['id']},a,404)
         ref = self.call('POST',dst+'references',{'grant':grant['id']},b)[1]
+        self.assertEqual(self.call('GET',dst+'references?limit=1',session=b)[1]['references'][0]['reference']['id'],ref['id'])
+        self.call('GET',dst+'references?limit=0',session=b,expected=400)
         route = dst+'references/'+ref['id']
         self.assertEqual(self.call('GET',route,session=b)[1]['file']['text'],'classified platypus')
         self.call('GET',src+'file?path=secret.md',session=b,expected=404)
         self.call('DELETE',src+'shares/'+ref['id'],session=b,expected=404)
         hits = self.call('POST',dst+'search',{'query':'platypus','allSpaces':True},b)[1]['hits']
+        self.assertEqual(len(hits),1)
         self.assertEqual(hits[0]['reference'],ref['id'])
         original = self.call('GET',src+'file?path=secret.md',session=a)[1]
         self.call('POST',src+'move',{'path':'secret.md','destination':'renamed.md','revision':original['document']['revision']},a,204)
@@ -39,6 +44,18 @@ class Sharing(Workspace):
         with zipfile.ZipFile(io.BytesIO(archive)) as z:
             self.assertEqual(z.read('shared-copies/'+allowed['id']+'/content.md'),b'classified platypus')
             self.assertIn('shared-copies/'+allowed['id']+'/ATTRIBUTION.json',z.namelist())
+            self.assertIn(b'source attribution',z.read('shared-copies/'+allowed['id']+'/comments.json'))
+            self.assertTrue(any(n.startswith('shared-copies/'+allowed['id']+'/people/') for n in z.namelist()))
+        # Portable reference fields cannot override the grant's source/entity binding.
+        from pathlib import Path
+        import json, uuid
+        refpath=Path(self.home.name)/'content/spaces'/target/'.tefter/references'/(allowed['id']+'.json')
+        original=refpath.read_bytes()
+        tampered=json.loads(original); tampered['entity']=str(uuid.uuid4())
+        refpath.write_text(json.dumps(tampered))
+        self.call('GET',dst+'references/'+allowed['id'],session=b,expected=404)
+        self.assertEqual(self.call('POST',dst+'search',{'query':'platypus'},b)[1]['hits'],[])
+        refpath.write_bytes(original)
         self.call('DELETE',src+'shares/'+allowed['id'],session=a,expected=204)
         self.call('GET',dst+'references/'+allowed['id'],session=b,expected=404)
         view = self.call('GET',dst+'references',session=b)[1]['references'][0]

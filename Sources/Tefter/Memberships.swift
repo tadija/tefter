@@ -121,8 +121,8 @@ extension Identity {
     let dir = try metadata(root(id, user: user)).directory("people")
     return People(
       people: try db.rows(
-        "SELECT users.id,email FROM users JOIN members ON members.user=users.id WHERE space=? ORDER BY email",
-        [id]
+        "SELECT users.id,email FROM users JOIN members ON members.user=users.id WHERE space=? UNION ALL SELECT agents.id,name AS email FROM agents JOIN agent_grants ON agents.id=agent_grants.id WHERE space=? ORDER BY email",
+        [id, id]
       ).map { row in
         let profile = String(decoding: try dir.read(row["id"]! + ".md"), as: UTF8.self)
         let title = profile.split(separator: "\n").first.flatMap {

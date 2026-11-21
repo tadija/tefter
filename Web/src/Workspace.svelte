@@ -1,17 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { preview } from "./markdown";
+  import Comms from "./Comms.svelte";
+  import Sharing from "./Sharing.svelte";
   import Links from "./Links.svelte";
   import Comments from "./Comments.svelte";
   import { api, listing } from "./api";
   let {
     space,
     initialPath,
+    initialReference = "",
     navigate,
   }: {
     space: string;
     initialPath: string;
-    navigate: (space: string, path: string) => void;
+    initialReference?: string;
+    navigate: (space: string, path: string, reference?: string) => void;
   } = $props();
   type Doc = {
     path: string;
@@ -92,7 +96,10 @@
     query = $state(""),
     allSpaces = $state(false),
     searched = $state(false);
-  let hits = $state<{ space: string; path: string; title: string }[]>([]);
+  let hits = $state<
+    { space: string; path: string; title: string; reference?: string }[]
+  >([]);
+  let sharedReference = $state("");
   let moreResults = $state(false);
   let searchFilter: Record<string, unknown> = {};
   async function search(more: boolean) {
@@ -140,7 +147,8 @@
     await run(async () => {
       await refresh();
       settings = await api(base() + "views");
-      mode = settings.defaults[""] ?? "Files";
+      mode = initialReference ? "Sharing" : (settings.defaults[""] ?? "Files");
+      sharedReference = initialReference;
       user = (await api<{ user: string }>("session")).user;
       people = await listing(base() + "people", "people");
       const initial = tree.documents.find((doc) => doc.path === initialPath);
@@ -308,7 +316,7 @@
       </button>
     </details>{/if}
   <nav aria-label="Views">
-    {#each ["Files", "Kanban", "Tasks", "Backlog", "Sprints", "Releases", "URLs", "People", "Search"] as tab}<button
+    {#each ["Files", "Kanban", "Tasks", "Backlog", "Sprints", "Releases", "URLs", "People", "Search", "Comms", "Sharing"] as tab}<button
         aria-pressed={mode === tab}
         onclick={() => (mode = tab)}
       >
@@ -333,278 +341,303 @@
         {name}
       </button>{/each}
   </details>
-  <div class="workspace" class:wide={mode === "Kanban" || mode === "URLs"}>
-    <aside>
-      {#if mode === "Search"}
-        <form
-          onsubmit={(e) => {
-            e.preventDefault();
-            run(() => search(false));
-          }}
-        >
-          <label>
-            Search content and comments <input bind:value={query} required />
-          </label><label>
-            <input type="checkbox" bind:checked={allSpaces} /> All accessible spaces
-          </label><label>
-            Type <select bind:value={typeFilter}>
-              <option value="">
-                All types
-              </option>{#each ["doc", "url", "task", "sprint", "release"] as t}<option>
-                  {t}
-                </option>{/each}
-            </select>
-          </label>
-          <label>
-            Author <select bind:value={authorFilter}>
-              <option value="">Any author</option>{#each people as p}<option
-                  value={p.id}
-                >
-                  {p.name}
-                </option>{/each}
-            </select>
-          </label>
-          <label>From <input type="date" bind:value={since} /></label><label>
-            Through <input type="date" bind:value={until} />
-          </label><button>Search</button>
-        </form>
-        {#each hits as hit}<p>
-            <button
-              onclick={() => {
-                if (hit.space === space) {
-                  const doc = tree.documents.find((d) => d.path === hit.path);
-                  if (doc) open(doc);
-                } else navigate(hit.space, hit.path);
-              }}
-            >
-              {hit.title} · {hit.path} · {hit.space}
-            </button>
-          </p>{:else}{#if searched}<p>No matches.</p>{/if}{/each}
-        {#if moreResults}<button onclick={() => run(() => search(true))}>
-            More results
-          </button>{/if}
-      {:else if mode === "People"}<h2>People</h2>
-        {#each people as p}<details>
-            <summary>{p.name}</summary>
-            <article>{@html preview(p.profile)}</article>
-          </details>{/each}
-      {:else}
-        <label>Filter <input bind:value={filter} /></label>
-        {#if mode === "Files"}
-          <ul>
-            {#each [...tree.directories
-                .filter((p) => !scope || p.startsWith(scope + "/"))
-                .map( (p) => ({ path: p, dir: true }) ), ...docs.map( (d) => ({ path: d.path, dir: false }) )].sort( (a, b) => a.path.localeCompare(b.path) ) as item}
-              <li
-                style:padding-left={(item.path.split("/").length - 1) * 0.8 +
-                  "rem"}
-              >
-                {#if item.dir}{item.path.split("/").pop()}/{:else}<button
-                    onclick={() =>
-                      open(tree.documents.find((d) => d.path === item.path)!)}
-                  >
-                    {item.path.split("/").pop()}
-                  </button>{/if}
-              </li>
-            {:else}<li>This space is empty.</li>{/each}
-          </ul>
-          <label>Directory path <input bind:value={folder} /></label><button
-            onclick={() =>
-              run(async () => {
-                await api(base() + "directory", "POST", { path: folder });
-                folder = "";
-                await refresh();
-              })}
+  {#if mode === "Comms"}<Comms
+      {space}
+      {people}
+      documents={tree.documents}
+      openEntity={(p) => {
+        mode = "Files";
+        const doc = tree.documents.find((d) => d.path === p);
+        if (doc) open(doc);
+      }}
+      promote={(text, task) => {
+        clear();
+        body = text;
+        kind = task ? "task" : "doc";
+        mode = "Files";
+      }}
+    />{:else if mode === "Sharing"}<Sharing
+      {space}
+      selectedReference={sharedReference}
+    />{:else}
+    <div class="workspace" class:wide={mode === "Kanban" || mode === "URLs"}>
+      <aside>
+        {#if mode === "Search"}
+          <form
+            onsubmit={(e) => {
+              e.preventDefault();
+              run(() => search(false));
+            }}
           >
-            Create directory
-          </button>
-        {:else if mode === "URLs"}<Links
-            docs={docs.filter((d) => d.type === "url")}
-            base={base()}
-            open={(path) => open(tree.documents.find((d) => d.path === path)!)}
-          />
-        {:else if mode === "Kanban"}
-          <div class="board">
-            {#each ["todo", "in-progress", "done"] as column}<section>
-                <h3>{column}</h3>
-                {#each docs.filter((d) => d.type === "task" && d.status === column) as d}<div
-                    class="task"
-                  >
-                    <button onclick={() => open(d)}>{d.title}</button>
-                    <select
-                      aria-label={"Status for " + d.title}
-                      value={d.status}
-                      onchange={(e) => {
-                        const status = e.currentTarget.value;
-                        run(async () => {
-                          await api(base() + "task-status", "POST", {
-                            path: d.path,
-                            revision: d.revision,
-                            status,
-                          });
-                          await refresh();
-                          if (selected?.id === d.id) await open(d);
-                        });
-                      }}
-                    >
-                      {#each ["todo", "in-progress", "done"] as state}<option>
-                          {state}
-                        </option>{/each}
-                    </select>
-                  </div>{/each}
-              </section>{/each}
-          </div>
-        {:else}
-          {#each docs.filter( (d) => (mode === "Tasks" || mode === "Backlog" ? d.type === "task" && (mode !== "Backlog" || !d.sprint) : d.type === ({ Sprints: "sprint", Releases: "release", URLs: "url" } as Record<string, string>)[mode]) ) as d}
-            <p>
-              <button onclick={() => open(d)}>{d.title}</button>
-              {["sprint", "release"].includes(d.type)
-                ? progress(d)
-                : (d.url ?? d.status ?? "")}
-            </p>
-          {:else}<p>No matching items.</p>{/each}
-        {/if}{/if}
-    </aside>
-    <section>
-      <button onclick={clear}>New file</button>
-      <a href={"/api/v1/" + base() + "export"} download>Export space</a>
-      <button
-        onclick={() =>
-          run(async () => {
-            await api(base() + "rescan", "POST");
-            await refresh();
-          })}
-      >
-        Rescan
-      </button>
-      {#if selected}<h2>{selected.title}</h2>
-        {#if selected.assignee}<p>
-            Assignee · {people.find((p) => p.id === selected?.assignee)?.name ??
-              "Unavailable"}
-          </p>{/if}
-        {#each [["Sprint", selected.sprint], ["Release", selected.release]] as [label, ref]}
-          {#if ref}{@const target = tree.documents.find((d) => d.id === ref)}
-            <p>
-              {label} · {#if target}<button onclick={() => open(target)}>
-                  {target.title}
-                </button>{:else}Unavailable ({ref}){/if}
-            </p>{/if}{/each}
-        <button onclick={() => (read = !read)}>
-          {read ? "Edit Markdown" : "Preview"}
-        </button>{/if}
-      {#if selected && read}<article>
-          {@html preview(body.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ""))}
-        </article>
-      {:else}
-        <label>
-          File path <input
-            bind:value={path}
-            disabled={!!selected}
-            placeholder="notes/plan.md"
-          />
-        </label>
-        {#if !selected}
-          <label>
-            Type <select bind:value={kind}>
-              {#each ["doc", "task", "sprint", "release", "url"] as k}<option>
-                  {k}
-                </option>{/each}
-            </select>
-          </label>
-          {#if kind !== "doc"}<label>
-              Title <input bind:value={title} />
-            </label>{/if}
-          {#if kind === "url"}<label>
-              URL <input type="url" bind:value={url} />
+            <label>
+              Search content and comments <input bind:value={query} required />
             </label><label>
-              Description <input bind:value={description} />
+              <input type="checkbox" bind:checked={allSpaces} /> All accessible spaces
             </label><label>
-              Tags (comma separated) <input bind:value={tags} />
-            </label><label>
-              Publication date <input type="date" bind:value={published} />
-            </label>{/if}
-          {#if kind === "task"}<label>
-              Status <select bind:value={status}>
-                {#each ["todo", "in-progress", "done"] as s}<option>
-                    {s}
+              Type <select bind:value={typeFilter}>
+                <option value="">
+                  All types
+                </option>{#each ["doc", "url", "task", "sprint", "release"] as t}<option>
+                    {t}
                   </option>{/each}
               </select>
             </label>
             <label>
-              Assignee <select bind:value={assignee}>
-                <option value="">Unassigned</option>{#each people as p}<option
+              Author <select bind:value={authorFilter}>
+                <option value="">Any author</option>{#each people as p}<option
                     value={p.id}
                   >
                     {p.name}
                   </option>{/each}
               </select>
             </label>
-            <label>
-              Sprint <select bind:value={sprint}>
-                <option value="">
-                  Unscheduled
-                </option>{#each tree.documents.filter((d) => d.type === "sprint") as d}<option
-                    value={d.id}
-                  >
-                    {d.title}
-                  </option>{/each}
-              </select>
-            </label>{/if}
-          {#if ["task", "sprint"].includes(kind)}<label>
-              Release <select bind:value={release}>
-                <option value="">
-                  None
-                </option>{#each tree.documents.filter((d) => d.type === "release") as d}<option
-                    value={d.id}
-                  >
-                    {d.title}
-                  </option>{/each}
-              </select>
-            </label>{/if}
-        {/if}
-        <label>
-          Markdown <textarea rows="15" bind:value={body}></textarea>
-        </label><button onclick={save}>Save</button>
-      {/if}
-      {#if selected}<details>
-          <summary>Move or delete file</summary><label>
-            Destination <input bind:value={dest} />
+            <label>From <input type="date" bind:value={since} /></label><label>
+              Through <input type="date" bind:value={until} />
+            </label><button>Search</button>
+          </form>
+          {#each hits as hit}<p>
+              <button
+                onclick={() => {
+                  if (hit.reference) {
+                    if (hit.space === space) {
+                      sharedReference = hit.reference;
+                      mode = "Sharing";
+                    } else navigate(hit.space, "", hit.reference);
+                  } else if (hit.space === space) {
+                    const doc = tree.documents.find((d) => d.path === hit.path);
+                    if (doc) open(doc);
+                  } else navigate(hit.space, hit.path);
+                }}
+              >
+                {hit.title} · {hit.path} · {hit.space}
+              </button>
+            </p>{:else}{#if searched}<p>No matches.</p>{/if}{/each}
+          {#if moreResults}<button onclick={() => run(() => search(true))}>
+              More results
+            </button>{/if}
+        {:else if mode === "People"}<h2>People</h2>
+          {#each people as p}<details>
+              <summary>{p.name}</summary>
+              <article>{@html preview(p.profile)}</article>
+            </details>{/each}
+        {:else}
+          <label>Filter <input bind:value={filter} /></label>
+          {#if mode === "Files"}
+            <ul>
+              {#each [...tree.directories
+                  .filter((p) => !scope || p.startsWith(scope + "/"))
+                  .map( (p) => ({ path: p, dir: true }) ), ...docs.map( (d) => ({ path: d.path, dir: false }) )].sort( (a, b) => a.path.localeCompare(b.path) ) as item}
+                <li
+                  style:padding-left={(item.path.split("/").length - 1) * 0.8 +
+                    "rem"}
+                >
+                  {#if item.dir}{item.path.split("/").pop()}/{:else}<button
+                      onclick={() =>
+                        open(tree.documents.find((d) => d.path === item.path)!)}
+                    >
+                      {item.path.split("/").pop()}
+                    </button>{/if}
+                </li>
+              {:else}<li>This space is empty.</li>{/each}
+            </ul>
+            <label>Directory path <input bind:value={folder} /></label><button
+              onclick={() =>
+                run(async () => {
+                  await api(base() + "directory", "POST", { path: folder });
+                  folder = "";
+                  await refresh();
+                })}
+            >
+              Create directory
+            </button>
+          {:else if mode === "URLs"}<Links
+              docs={docs.filter((d) => d.type === "url")}
+              base={base()}
+              open={(path) =>
+                open(tree.documents.find((d) => d.path === path)!)}
+            />
+          {:else if mode === "Kanban"}
+            <div class="board">
+              {#each ["todo", "in-progress", "done"] as column}<section>
+                  <h3>{column}</h3>
+                  {#each docs.filter((d) => d.type === "task" && d.status === column) as d}<div
+                      class="task"
+                    >
+                      <button onclick={() => open(d)}>{d.title}</button>
+                      <select
+                        aria-label={"Status for " + d.title}
+                        value={d.status}
+                        onchange={(e) => {
+                          const status = e.currentTarget.value;
+                          run(async () => {
+                            await api(base() + "task-status", "POST", {
+                              path: d.path,
+                              revision: d.revision,
+                              status,
+                            });
+                            await refresh();
+                            if (selected?.id === d.id) await open(d);
+                          });
+                        }}
+                      >
+                        {#each ["todo", "in-progress", "done"] as state}<option>
+                            {state}
+                          </option>{/each}
+                      </select>
+                    </div>{/each}
+                </section>{/each}
+            </div>
+          {:else}
+            {#each docs.filter( (d) => (mode === "Tasks" || mode === "Backlog" ? d.type === "task" && (mode !== "Backlog" || !d.sprint) : d.type === ({ Sprints: "sprint", Releases: "release", URLs: "url" } as Record<string, string>)[mode]) ) as d}
+              <p>
+                <button onclick={() => open(d)}>{d.title}</button>
+                {["sprint", "release"].includes(d.type)
+                  ? progress(d)
+                  : (d.url ?? d.status ?? "")}
+              </p>
+            {:else}<p>No matching items.</p>{/each}
+          {/if}{/if}
+      </aside>
+      <section>
+        <button onclick={clear}>New file</button>
+        <a href={"/api/v1/" + base() + "export"} download>Export space</a>
+        <button
+          onclick={() =>
+            run(async () => {
+              await api(base() + "rescan", "POST");
+              await refresh();
+            })}
+        >
+          Rescan
+        </button>
+        {#if selected}<h2>{selected.title}</h2>
+          {#if selected.assignee}<p>
+              Assignee · {people.find((p) => p.id === selected?.assignee)
+                ?.name ?? "Unavailable"}
+            </p>{/if}
+          {#each [["Sprint", selected.sprint], ["Release", selected.release]] as [label, ref]}
+            {#if ref}{@const target = tree.documents.find((d) => d.id === ref)}
+              <p>
+                {label} · {#if target}<button onclick={() => open(target)}>
+                    {target.title}
+                  </button>{:else}Unavailable ({ref}){/if}
+              </p>{/if}{/each}
+          <button onclick={() => (read = !read)}>
+            {read ? "Edit Markdown" : "Preview"}
+          </button>{/if}
+        {#if selected && read}<article>
+            {@html preview(body.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ""))}
+          </article>
+        {:else}
+          <label>
+            File path <input
+              bind:value={path}
+              disabled={!!selected}
+              placeholder="notes/plan.md"
+            />
           </label>
-          <button
-            onclick={() =>
-              run(async () => {
-                await api(base() + "move", "POST", {
-                  path,
-                  revision,
-                  destination: dest,
-                });
-                clear();
-                await refresh();
-              })}
-          >
-            Move
-          </button>
-          <button
-            onclick={() =>
-              run(async () => {
-                if (confirm("Delete " + path + "?")) {
-                  await api(base() + "delete", "POST", { path, revision });
+          {#if !selected}
+            <label>
+              Type <select bind:value={kind}>
+                {#each ["doc", "task", "sprint", "release", "url"] as k}<option>
+                    {k}
+                  </option>{/each}
+              </select>
+            </label>
+            {#if kind !== "doc"}<label>
+                Title <input bind:value={title} />
+              </label>{/if}
+            {#if kind === "url"}<label>
+                URL <input type="url" bind:value={url} />
+              </label><label>
+                Description <input bind:value={description} />
+              </label><label>
+                Tags (comma separated) <input bind:value={tags} />
+              </label><label>
+                Publication date <input type="date" bind:value={published} />
+              </label>{/if}
+            {#if kind === "task"}<label>
+                Status <select bind:value={status}>
+                  {#each ["todo", "in-progress", "done"] as s}<option>
+                      {s}
+                    </option>{/each}
+                </select>
+              </label>
+              <label>
+                Assignee <select bind:value={assignee}>
+                  <option value="">Unassigned</option>{#each people as p}<option
+                      value={p.id}
+                    >
+                      {p.name}
+                    </option>{/each}
+                </select>
+              </label>
+              <label>
+                Sprint <select bind:value={sprint}>
+                  <option value="">
+                    Unscheduled
+                  </option>{#each tree.documents.filter((d) => d.type === "sprint") as d}<option
+                      value={d.id}
+                    >
+                      {d.title}
+                    </option>{/each}
+                </select>
+              </label>{/if}
+            {#if ["task", "sprint"].includes(kind)}<label>
+                Release <select bind:value={release}>
+                  <option value="">
+                    None
+                  </option>{#each tree.documents.filter((d) => d.type === "release") as d}<option
+                      value={d.id}
+                    >
+                      {d.title}
+                    </option>{/each}
+                </select>
+              </label>{/if}
+          {/if}
+          <label>
+            Markdown <textarea rows="15" bind:value={body}></textarea>
+          </label><button onclick={save}>Save</button>
+        {/if}
+        {#if selected}<details>
+            <summary>Move or delete file</summary><label>
+              Destination <input bind:value={dest} />
+            </label>
+            <button
+              onclick={() =>
+                run(async () => {
+                  await api(base() + "move", "POST", {
+                    path,
+                    revision,
+                    destination: dest,
+                  });
                   clear();
                   await refresh();
-                }
-              })}
-          >
-            Delete
-          </button>
-        </details>{/if}
-      {#if selected}{#key selected.path}<Comments
-            {people}
-            base={base()}
-            path={selected.path}
-            {user}
-          />{/key}{/if}
-    </section>
-  </div>{/if}
+                })}
+            >
+              Move
+            </button>
+            <button
+              onclick={() =>
+                run(async () => {
+                  if (confirm("Delete " + path + "?")) {
+                    await api(base() + "delete", "POST", { path, revision });
+                    clear();
+                    await refresh();
+                  }
+                })}
+            >
+              Delete
+            </button>
+          </details>{/if}
+        {#if selected}{#key selected.path}<Comments
+              {people}
+              base={base()}
+              path={selected.path}
+              {user}
+            />{/key}{/if}
+      </section>
+    </div>{/if}{/if}
 
 <style>
   .workspace.wide {

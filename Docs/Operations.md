@@ -18,7 +18,8 @@ For deployment, install the executable and external `Web/dist` assets, keep the 
 | TEFTER_WEB | Web/dist | Compiled public assets |
 | TEFTER_HOST | 127.0.0.1 | Listen address |
 | TEFTER_PORT | 2909 | Listen port |
-| TEFTER_PUBLIC_URL | unset | Public HTTPS origin for optional mail links |
+| TEFTER_COMMS_RETENTION_DAYS | 30 | Comms retention in days (1–3650) |
+| TEFTER_PUBLIC_URL | unset | Public HTTPS origin for mail links and WebSocket origin validation |
 | TEFTER_SMTP_URL, TEFTER_SMTP_FROM | unset | SMTP endpoint and sender. SMTP requires STARTTLS or implicit TLS |
 | TEFTER_SMTP_USER, TEFTER_SMTP_PASSWORD | unset | Optional SMTP credentials |
 | TEFTER_SMTP_CA_FILE | system trust store | Optional private CA certificate bundle for SMTP |
@@ -31,6 +32,8 @@ The service environment overrides optional settings in `$TEFTER_HOME/config/serv
 
 Use `/api/v1/health` for liveness and `/api/v1/ready` for startup readiness. SIGTERM initiates graceful shutdown. Local login, account creation and offline recovery work independently of SMTP. An administrator can email an existing account a single-use password setup link valid for 30 minutes.
 
+See [Collaboration](Collaboration.md) for channel retention, sharing/export policy, agent credentials and Stage 1 upgrade steps.
+
 ## Storage and operation
 
 - Add ordinary Markdown files anywhere under `content/spaces/SPACE-ID`. Use **Rescan** after external edits to reconcile identity and rebuild search. Front matter determines typed views. A plain document receives a portable sidecar ID when needed for comments.
@@ -38,7 +41,7 @@ Use `/api/v1/health` for liveness and `/api/v1/ready` for startup readiness. SIG
 - The API paginates tree, membership and directory listings with `offset` and `limit`. Search returns at most 100 matches per offset. Editable Markdown and metadata reads/writes are bounded at 16 MiB. ZIP exports spool to a private temporary file and stream to the client. Attachments are copied in chunks.
 - Link previews allow HTTP and HTTPS. The transport checks the actual IP before each socket opens, disables proxies, follows up to three redirects, reads at most 512 KiB per transfer and times out after five seconds. The file and notes remain available if preview generation fails.
 - Private Git checkpoints run on startup and every 30 seconds under `runtime/history` using `/usr/bin/git`. The server stages validated durable files in an isolated work tree. File writes are durable before the next checkpoint.
-- Operational schema version 1 is the first release. The executable rejects unknown schema versions. Before future upgrades, stop the server and take a verified backup.
+- Operational schema version 2 adds Stage 2 collaboration tables through an additive migration from version 1. The executable rejects unknown schema versions. Before future upgrades, stop the server and take a verified backup.
 
 ## Full-instance backup and restore
 

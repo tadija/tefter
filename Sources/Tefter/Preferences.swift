@@ -26,7 +26,7 @@ extension Identity {
     guard var update else { return current }
     guard update.revision == current.revision else { throw HTTPError(.conflict) }
     let modes = [
-      "Files", "Kanban", "Tasks", "Backlog", "Sprints", "Releases", "URLs", "People", "Search",
+      "Files", "Kanban", "Tasks", "Backlog", "Sprints", "Releases", "URLs", "People", "Search", "Comms", "Sharing",
     ]
     guard update.version == 1, update.defaults.count + update.saved.count <= 500,
       (Array(update.defaults.values) + Array(update.saved.values)).allSatisfy(modes.contains)

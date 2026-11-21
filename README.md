@@ -32,6 +32,7 @@ Open http://127.0.0.1:2909/ and sign in. Use **Account and administration** to a
 ## Documentation
 
 - [Operations](Docs/Operations.md): configuration, deployment, storage, backup and recovery.
+- [Collaboration](Docs/Collaboration.md): Comms, sharing, agent access and upgrades.
 - [Development](Docs/Development.md): validation commands and test setup.
 - [Specification](Docs/Specs.md): product direction and the three implementation stages.
 - [Stage 1 log](Docs/stage-1-log.md): decisions and acceptance results.

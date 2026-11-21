@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  stage-1:
-    name: Stage 1 on Ubuntu 24.04
+  collaboration:
+    name: Workspace and collaboration on Ubuntu 24.04
     runs-on: ubuntu-24.04
     container: swift:6.4.3-noble
     timeout-minutes: 45

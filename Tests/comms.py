@@ -3,6 +3,11 @@ from identity import Workspace
 from pathlib import Path
 import json
 import uuid
+import http.client
+import io
+import zipfile
+import subprocess
+import time
 
 
 class Comms(Workspace):
@@ -18,6 +23,11 @@ class Comms(Workspace):
         other = self.login('other@test.org')
         self.call('GET', base+'channels', session=other, expected=404)
         route = base+f"channels/{channel['id']}/messages"
+        self.call('POST',base+'write',{'path':'plain.md','text':'untouched markdown'},a,204)
+        identified=self.call('POST',base+'identify',{'path':'plain.md'},a)[1]
+        self.assertTrue(identified['document']['id'])
+        self.assertEqual(identified['text'],'untouched markdown')
+        self.call('POST',base+'identify',{'path':'plain.md'},other,404)
         payload = {'body':'hello @someone **world**', 'nonce':str(uuid.uuid4())}
         message = self.call('POST', route, payload, a)[1]
         self.assertEqual(self.call('POST', route, payload, a)[1], message)
@@ -27,6 +37,8 @@ class Comms(Workspace):
         auth = {'Authorization':'Bearer '+agent['token']}
         self.call('POST', route, payload, auth, 401)
         self.call('PUT', base+'agents', {'id':agent['id']}, a, 204)
+        self.assertEqual(self.call('GET',base+'agents',session=a)[1]['agents'][0]['id'],agent['id'])
+        self.assertIn(agent['id'],[p['id'] for p in self.call('GET',base+'people',session=a)[1]['people']])
         m = self.call('POST', route, payload, auth)[1]
         self.assertEqual((m['author'],m['authorKind']), (agent['id'],'agent'))
         self.call('GET', base+'tree', session=auth, expected=401)
@@ -45,3 +57,16 @@ class Comms(Workspace):
         self.call('GET', route, session=a)
         self.assertFalse(old.exists())
         self.assertEqual(self.call('GET', base+'tree', session=a)[1]['directories'], [])
+        conn=http.client.HTTPConnection('127.0.0.1',self.port,timeout=5)
+        conn.request('GET','/api/v1/'+base+'export',headers=a)
+        response=conn.getresponse(); self.assertEqual(response.status,200)
+        with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+            self.assertFalse(any(n.startswith('comms/') for n in archive.namelist()))
+        conn.close()
+        repo=Path(self.home.name)/'runtime/history'/(space+'.git')
+        for _ in range(50):
+            result=subprocess.run(['git','--git-dir='+str(repo),'ls-tree','-r','--name-only','HEAD'],capture_output=True,text=True)
+            if result.returncode==0: break
+            time.sleep(.05)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertFalse(any(n.startswith('comms/') for n in result.stdout.splitlines()))

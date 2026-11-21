@@ -94,10 +94,26 @@ class Live(Workspace):
         self.assertEqual(two.receive(),second)
         resumed=self.connect(path+'?after='+str(m1['sequence']),a)
         self.assertEqual(resumed.receive(),second)
+        invalid=self.connect(path+'?after='+str(second['sequence']),a)
+        invalid.send({'body':'bad csrf','nonce':str(uuid.uuid4()),'csrf':'invalid'})
+        self.assertIsNone(invalid.receive())
         self.call('DELETE',base+'members',{'user':user},a,204)
         # An existing subscribed client closes when its grant is removed.
         self.assertIsNone(two.receive())
         self.call('POST',route,{'body':'denied','nonce':str(uuid.uuid4())},b,404)
         self.assertNotEqual(self.connect(path,b).status,101)
+        agent=self.call('POST','agents',{'name':'Live agent'},a)[1]
+        bearer={'Authorization':'Bearer '+agent['token']}
+        self.assertNotEqual(self.connect(path,bearer,False).status,101)
+        self.call('PUT',base+'agents',{'id':agent['id']},a,204)
+        agent_socket=self.connect(path+'?after='+str(second['sequence']),bearer,False)
+        self.assertEqual(agent_socket.status,101)
+        agent_socket.send({'body':'agent event','nonce':str(uuid.uuid4())})
+        event=agent_socket.receive()
+        self.assertEqual((event['author'],event['authorKind']),(agent['id'],'agent'))
+        self.call('DELETE',base+'agents',{'id':agent['id']},a,204)
+        self.assertIsNone(agent_socket.receive())
+        # Drain the same event from the human subscription before logout.
+        self.assertEqual(resumed.receive(),event)
         self.call('POST','logout',session=a,expected=204)
         self.assertIsNone(resumed.receive())

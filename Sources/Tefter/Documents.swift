@@ -68,6 +68,13 @@ extension Identity {
       next: page.next(count: max(tree.directories.count, tree.documents.count)))
   }
 
+  func identifyDocument(_ space: String, path: String, request: Request) throws -> FileText {
+    let user = try session(request).user
+    let file = try document(path, root: root(space, user: user), identify: true)
+    try audit(user, "identify-document", space + "/" + file.document.id!)
+    return file
+  }
+
   func file(_ space: String, path: String, request: Request) throws -> FileText {
     try document(path, root: root(space, user: session(request).user))
   }
@@ -319,6 +326,10 @@ func registerDocuments(_ router: Router<BasicRequestContext>, _ identity: Identi
     try await identity.image(
       ctx.parameters.require("space"), path: req.uri.queryParameters.require("path"),
       kind: req.uri.queryParameters.require("kind"), request: req)
+  }
+  group.post("identify") { req, ctx in
+    let input = try await req.decode(as: FileChange.self, context: ctx)
+    return try await identity.identifyDocument(ctx.parameters.require("space"), path: input.path, request: req)
   }
   group.post("task-status") { req, ctx -> HTTPResponse.Status in
     let input = try await req.decode(as: StatusChange.self, context: ctx)

@@ -6,6 +6,7 @@
   type Space = { id: string; name: string; role: string };
   let spaces = $state<Space[]>([]);
   let selected = $state("");
+  let initialReference = $state("");
   let initialPath = $state("");
   let user = $state(""),
     recovery = $state("");
@@ -124,17 +125,25 @@
       selected = "";
     }}
   />
-  <label>
-    Space <select bind:value={selected} onchange={() => (initialPath = "")}>
-      {#each spaces as space}<option value={space.id}>
-          {space.name}
-        </option>{/each}
-    </select>
-  </label>
+  <label for="space-switcher">Space</label>
+  <select
+    id="space-switcher"
+    bind:value={selected}
+    onchange={() => {
+      initialPath = "";
+      initialReference = "";
+    }}
+  >
+    {#each spaces as space}<option value={space.id}>
+        {space.name}
+      </option>{/each}
+  </select>
   {#if selected}{#key selected}<Workspace
         space={selected}
         {initialPath}
-        navigate={(id, path) => {
+        {initialReference}
+        navigate={(id, path, reference) => {
+          initialReference = reference ?? "";
           initialPath = path;
           selected = id;
         }}
