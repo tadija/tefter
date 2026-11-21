@@ -83,7 +83,7 @@ enum Tefter {
     guard publicPath != "/", publicPath != privatePath, !privatePath.hasPrefix(publicPath + "/"),
       !protectedDirectories.contains(where: { publicPath == $0 || publicPath.hasPrefix($0 + "/") }),
       files.isReadableFile(atPath: assets + "/index.html"),
-      let port = Int(settings["TEFTER_PORT"] ?? "8080"), (1...65535).contains(port)
+      let port = Int(settings["TEFTER_PORT"] ?? "2909"), (1...65535).contains(port)
     else {
       throw ConfigurationError.invalidAssetsOrPort
     }

@@ -235,14 +235,14 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 - Audit meaningful mutations and privileged actions without leaking secret content.
 - Test: auth/session/CSRF; org and space isolation; shared grant/revoke; path traversal/symlink race handling; concurrent writes; restart and crash recovery; FTS rebuild; URL SSRF; retention; WebSocket authorization; Git checkout isolation; plugin timeout; adapter capability fallbacks; export/restore round trips.
 - Use real integration tests for critical boundaries. No mock-only acceptance of persistence, security or external harness support.
-- Document environment variables, install/run commands, migration and backup steps in README. Provide a clean setup from a fresh checkout.
+- Document environment variables, deployment, migration and backup steps in Docs, linked from README; keep install/run commands in README. Provide a clean setup from a fresh checkout.
 
 ## 10. Implementation process and change control
 1. Inspect repository and existing working code first; preserve functioning behavior. Do not assume a greenfield checkout.
 2. Read **this entire spec** before coding. Identify current stage and create a short execution plan with acceptance tests.
 3. Implement vertical slices; use **multiple meaningful commits** per shot. Keep each commit buildable when feasible.
 4. Run tests/build after each slice and all stage acceptance tests at stage end; fix regressions before advancing.
-5. Maintain `tefter-specs.md` alongside code when **implementation details** change; preserve approved product decisions. Record deviations, tradeoffs, migrations and incomplete items in a concise decision/progress log. Never silently delete requirements.
+5. Maintain `Docs/Specs.md` alongside code when **implementation details** change; preserve approved product decisions. Record deviations, tradeoffs, migrations and incomplete items in a concise decision/progress log. Never silently delete requirements.
 6. Stage 2 extends Stage 1; Stage 3 extends Stage 2. No speculative wholesale rewrites.
 7. At each stage gate report completed items, test commands/results, known limitations, commit hashes and next-stage readiness.
 8. For ambiguous implementation details, choose the simplest secure portable option and document it; request approval for scope/security/product changes, new mandatory services, or removal of required functionality.
@@ -258,7 +258,7 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 - Video conferencing. Audio remains a bounded late-stage requirement as defined above.
 
 ## 12. Completion definition
-v1 is complete when Stage 1, 2 and 3 mandatory acceptance gates pass, the repository builds from a clean checkout, security/portability tests pass, README explains deployment/backup/recovery, and remaining exceptions are explicitly approved and documented. **A feature represented only by scaffolding or a nonfunctional UI does not count as implemented.**
+Tefter is complete when Stage 1, 2 and 3 mandatory acceptance gates pass, the repository builds from a clean checkout, security/portability tests pass, README links to deployment/backup/recovery documentation, and remaining exceptions are explicitly approved and documented. **A feature represented only by scaffolding or a nonfunctional UI does not count as implemented.**
 
 ### Stage 1 implementation notes
 
