@@ -93,10 +93,26 @@ extension Identity {
       if folder != nil { settings.defaults = settings.defaults.filter { included($0.key) } }
       try zip.add(".tefter/views.json", JSONEncoder().encode(settings))
     }
-    if folder == nil, try meta.info("references") != nil {
-      let references = try meta.directory("references")
-      for name in try references.entries() where name.hasSuffix(".json") {
-        try zip.add(".tefter/references/" + name, references.read(name))
+    if folder == nil {
+      let copyShared = request.uri.queryParameters.get("includeShared") == "true"
+      for ref in try referenceFiles(space) {
+        // A reference never embeds a cached title, snippet or copy of the source.
+        try zip.add(".tefter/references/" + ref.id + ".json", JSONEncoder().encode(ref))
+        if copyShared {
+          let (grant, source, file) = try resolveReference(ref)
+          guard grant.allowExport else { throw HTTPError(.forbidden, message: "The source owner has not permitted shared copies.") }
+          let prefix = "shared-copies/" + ref.id + "/"
+          try zip.add(prefix + "content.md", Data(file.text.utf8))
+          try zip.add(prefix + "comments.json", JSONEncoder().encode(thread(ref.entity, root: source)))
+          let authors = Set(try thread(ref.entity, root: source).comments.map(\.author))
+          let people = try metadata(source).directory("people", create: true)
+          for author in authors where UUID(uuidString: author) != nil {
+            if try people.info(author + ".md") != nil {
+              try zip.add(prefix + "people/" + author + ".md", people.read(author + ".md"))
+            }
+          }
+          try zip.add(prefix + "ATTRIBUTION.json", JSONEncoder().encode(ref))
+        }
       }
     }
     let profiles = try meta.directory("people")

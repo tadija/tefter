@@ -36,6 +36,7 @@ struct Hit: ResponseCodable {
   let path: String
   let title: String
   let type: String
+  var reference: String?
 }
 struct Results: ResponseCodable { let hits: [Hit] }
 struct SearchInput: Decodable {
@@ -102,7 +103,10 @@ extension Identity {
   }
 
   func rebuild(_ space: String, user: String) throws {
-    let root = try root(space, user: user)
+    try rebuildIndex(space, root: root(space, user: user))
+  }
+
+  func rebuildIndex(_ space: String, root: Directory) throws {
     let tree = try scan(root)
     try db.transaction {
       try db.execute(
@@ -139,9 +143,25 @@ extension Identity {
     let spaces = try input.allSpaces == true ? accessible(user).map(\.id) : [space]
     guard !input.query.isEmpty, input.query.utf8.count <= 500 else { throw HTTPError(.badRequest) }
     for id in spaces where !indexedSpaces.contains(id) { try rebuild(id, user: user) }
+    // Resolve every reference against operational grants on every request. Never
+    // treat the disposable FTS index or portable reference file as authorization.
+    var shared: [(target: String, ref: SharedReference, doc: Document)] = []
+    for target in spaces {
+      for ref in try referenceFiles(target) {
+        guard let (_, source, file) = try? resolveReference(ref) else { continue }
+        if !indexedSpaces.contains(ref.source) { try rebuildIndex(ref.source, root: source) }
+        shared.append((target, ref, file.document))
+      }
+    }
     let slots = spaces.map { _ in "?" }.joined(separator: ",")
-    var conditions = ["space IN (" + slots + ")", "search MATCH ?"]
-    var args = spaces + ["\"" + input.query.replacingOccurrences(of: "\"", with: "\"\"") + "\""]
+    var authorized = ["space IN (" + slots + ")"]
+    var args = spaces
+    for item in shared {
+      authorized.append("(space=? AND path=?)")
+      args += [item.ref.source, item.doc.path]
+    }
+    var conditions = ["(" + authorized.joined(separator: " OR ") + ")", "search MATCH ?"]
+    args.append("\"" + input.query.replacingOccurrences(of: "\"", with: "\"\"") + "\"")
     for (field, value) in [
       ("kind=?", input.type), ("author=?", input.author), ("date>=?", input.since),
       ("date<=?", input.until),
@@ -160,10 +180,15 @@ extension Identity {
     let rows = try db.rows(
       "SELECT DISTINCT space,path,title,kind FROM search WHERE "
         + conditions.joined(separator: " AND ") + " ORDER BY space,path LIMIT 100 OFFSET ?", args)
-    return Results(
-      hits: rows.map {
-        Hit(space: $0["space"]!, path: $0["path"]!, title: $0["title"]!, type: $0["kind"]!)
-      })
+    return Results(hits: rows.compactMap { row in
+      let source = row["space"]!, path = row["path"]!
+      if spaces.contains(source) {
+        return Hit(space: source, path: path, title: row["title"]!, type: row["kind"]!)
+      }
+      guard let item = shared.first(where: { $0.ref.source == source && $0.doc.path == path }),
+        (try? resolveReference(item.ref)) != nil else { return nil }
+      return Hit(space: item.target, path: path, title: row["title"]!, type: row["kind"]!, reference: item.ref.id)
+    })
   }
 }
 

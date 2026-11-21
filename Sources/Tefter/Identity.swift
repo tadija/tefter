@@ -56,6 +56,7 @@ actor Identity {
     try db.execute("CREATE TABLE IF NOT EXISTS agents(id TEXT PRIMARY KEY,name TEXT NOT NULL,digest TEXT UNIQUE NOT NULL)")
     try db.execute("CREATE TABLE IF NOT EXISTS agent_grants(space TEXT REFERENCES spaces,id TEXT REFERENCES agents,PRIMARY KEY(space,id))")
     try db.execute("CREATE TABLE IF NOT EXISTS channel_cursors(space TEXT REFERENCES spaces,channel TEXT,sequence INTEGER NOT NULL,PRIMARY KEY(space,channel))")
+    try db.execute("CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,source TEXT REFERENCES spaces,entity TEXT NOT NULL,target TEXT REFERENCES spaces,copies INTEGER NOT NULL)")
     try db.execute("PRAGMA user_version=2")
   }
 
