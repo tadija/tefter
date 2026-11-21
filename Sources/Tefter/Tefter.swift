@@ -35,6 +35,7 @@ enum Tefter {
 
   static func run() async throws {
     _ = umask(0o077)
+    signal(SIGPIPE, SIG_IGN)
     let env = ProcessInfo.processInfo.environment
     let files = FileManager.default
     let data =
@@ -99,6 +100,8 @@ enum Tefter {
     registerComms(router, identity)
     registerSharing(router, identity)
     registerRepos(router, identity)
+    registerHarnesses(router, identity)
+    try await identity.recoverExecutions()
     try await identity.purgeComms()
     router.get("/api/v1/health") { _, _ in Health(status: "ok") }
     router.get("/api/v1/ready") { _, _ in Health(status: "ready") }

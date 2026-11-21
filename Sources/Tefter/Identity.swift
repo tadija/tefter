@@ -25,6 +25,8 @@ struct Space: ResponseCodable {
 }
 
 actor Identity {
+  var gitOperations = Set<String>()
+  var runningExecutions = 0
   var socketCounts: [String: Int] = [:]
   var indexedSpaces = Set<String>()
   let previews = PreviewWorker()
@@ -59,6 +61,9 @@ actor Identity {
     try db.execute("CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,source TEXT REFERENCES spaces,entity TEXT NOT NULL,target TEXT REFERENCES spaces,copies INTEGER NOT NULL)")
     try db.execute("CREATE TABLE IF NOT EXISTS repo_ownership(id TEXT PRIMARY KEY,space TEXT REFERENCES spaces)")
     try db.execute("CREATE TABLE IF NOT EXISTS repo_grants(repo TEXT REFERENCES repo_ownership,space TEXT REFERENCES spaces,PRIMARY KEY(repo,space))")
+    try db.execute("CREATE TABLE IF NOT EXISTS harness_connections(id TEXT PRIMARY KEY,name TEXT NOT NULL,executable TEXT NOT NULL,credential_home TEXT NOT NULL,adhoc INTEGER NOT NULL)")
+    try db.execute("CREATE TABLE IF NOT EXISTS execution_grants(connection TEXT REFERENCES harness_connections,space TEXT REFERENCES spaces,user TEXT REFERENCES users,PRIMARY KEY(connection,space,user))")
+    try db.execute("CREATE TABLE IF NOT EXISTS executions(id TEXT PRIMARY KEY,space TEXT REFERENCES spaces,connection TEXT REFERENCES harness_connections)")
     try db.execute("PRAGMA user_version=3")
   }
 

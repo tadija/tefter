@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { preview } from "./markdown";
+  import Sessions from "./Sessions.svelte";
   import Repos from "./Repos.svelte";
   import Comms from "./Comms.svelte";
   import Sharing from "./Sharing.svelte";
@@ -317,7 +318,7 @@
       </button>
     </details>{/if}
   <nav aria-label="Views">
-    {#each ["Files", "Kanban", "Tasks", "Backlog", "Sprints", "Releases", "URLs", "People", "Search", "Comms", "Sharing", "Repos"] as tab}<button
+    {#each ["Files", "Kanban", "Tasks", "Backlog", "Sprints", "Releases", "URLs", "People", "Search", "Comms", "Sharing", "Repos", "Sessions"] as tab}<button
         aria-pressed={mode === tab}
         onclick={() => (mode = tab)}
       >
@@ -342,7 +343,7 @@
         {name}
       </button>{/each}
   </details>
-  {#if mode === "Repos"}<Repos {space} />{:else if mode === "Comms"}<Comms
+  {#if mode === "Sessions"}<Sessions {space} />{:else if mode === "Repos"}<Repos {space} />{:else if mode === "Comms"}<Comms
       {space}
       {people}
       documents={tree.documents}
