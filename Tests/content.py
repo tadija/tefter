@@ -28,6 +28,10 @@ class Content(Workspace):
             ("task", task, "Engineering/work.md", f"custom: [one, two]\nstatus: todo\nsprint: {sprint}\nrelease: {release}\n"),
             ("url", url, "Research/source.md", "url: https://example.org/\n")]:
             write(path, f"---\nid: {entity}\ntype: {kind}\ntitle: Example\n{fields}---\nNotes")
+        saved_url = next(d for d in tree() if d.get("id")==url)
+        self.assertTrue(saved_url["created"].endswith("Z"))
+        invalid = f"---\nid: {uuid.uuid4()}\ntype: task\nstatus: todo\nsprint: [{sprint}, {sprint}]\n---\n"
+        self.call("POST",base+"write",{"path":"Engineering/invalid.md","text":invalid},self.admin,422)
         task_doc = next(d for d in tree() if d.get("id") == task)
         self.assertEqual((task_doc["sprint"], task_doc["release"]), (sprint, release))
         self.call("POST",base+"task-status",{"path":task_doc["path"],"revision":task_doc["revision"],"status":"done"},self.admin,204)

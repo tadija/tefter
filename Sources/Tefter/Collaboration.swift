@@ -122,7 +122,8 @@ extension Identity {
             #endif
             return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: Double(seconds)))
           } ?? ""
-        try db.execute(insert, [space, doc.path, doc.title, doc.type, "", changed, text])
+        try db.execute(
+          insert, [space, doc.path, doc.title, doc.type, doc.author ?? "", changed, text])
         for c in try thread(doc.id, root: root).comments where !c.deleted {
           try db.execute(
             insert, [space, doc.path, doc.title, doc.type, c.author, c.created, c.body])

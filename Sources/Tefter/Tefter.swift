@@ -75,7 +75,14 @@ enum Tefter {
       return
     }
     let assets = settings["TEFTER_WEB"] ?? "Web/dist"
-    guard files.isReadableFile(atPath: assets + "/index.html"),
+    let publicPath = URL(fileURLWithPath: assets).standardizedFileURL.resolvingSymlinksInPath().path
+    let privatePath = home.standardizedFileURL.resolvingSymlinksInPath().path
+    let protectedDirectories = ["content", "config", "runtime", "installation", "secrets"].map {
+      privatePath + "/" + $0
+    }
+    guard publicPath != "/", publicPath != privatePath, !privatePath.hasPrefix(publicPath + "/"),
+      !protectedDirectories.contains(where: { publicPath == $0 || publicPath.hasPrefix($0 + "/") }),
+      files.isReadableFile(atPath: assets + "/index.html"),
       let port = Int(settings["TEFTER_PORT"] ?? "8080"), (1...65535).contains(port)
     else {
       throw ConfigurationError.invalidAssetsOrPort

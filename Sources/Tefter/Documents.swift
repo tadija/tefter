@@ -16,6 +16,7 @@ struct Document: ResponseCodable {
   var type: String
   var title: String
   var status: String?
+  var author: String?
   var assignee: String?
   var sprint: String?
   var release: String?
@@ -105,10 +106,22 @@ extension Identity {
     if normalized.hasPrefix("---\n"), let end = normalized.dropFirst(4).range(of: "\n---\n"),
       let fields = try? Yams.compose(
         yaml: String(
-          normalized[normalized.index(normalized.startIndex, offsetBy: 4)..<end.lowerBound])),
-      let kind = fields["type"]?.scalar?.string,
-      ["task", "sprint", "release", "url"].contains(kind)
+          normalized[normalized.index(normalized.startIndex, offsetBy: 4)..<end.lowerBound]))
     {
+      doc.author = fields["author"]?.scalar?.string
+      guard let kind = fields["type"]?.scalar?.string,
+        ["task", "sprint", "release", "url"].contains(kind)
+      else {
+        return FileText(text: text, document: doc)
+      }
+      let names = fields.mapping?.compactMap { $0.key.scalar?.string } ?? []
+      guard Set(names).count == names.count else {
+        throw HTTPError(.unprocessableContent, message: "Duplicate front matter field in " + path)
+      }
+      for field in ["sprint", "release", "assignee"]
+      where fields[field] != nil && fields[field]?.scalar == nil {
+        throw HTTPError(.unprocessableContent, message: field + " accepts one ID in " + path)
+      }
       guard let id = fields["id"]?.scalar?.string, UUID(uuidString: id) != nil else {
         throw HTTPError(.conflict, message: "Typed file requires a UUID at " + path)
       }
@@ -117,8 +130,8 @@ extension Identity {
       doc.title = fields["title"]?.scalar?.string ?? doc.title
       doc.status = fields["status"]?.scalar?.string
       doc.assignee = fields["assignee"]?.scalar?.string
-      doc.sprint = fields["sprint"]?.scalar?.string
-      doc.release = fields["release"]?.scalar?.string
+      doc.sprint = fields["sprint"]?.scalar?.string.lowercased()
+      doc.release = fields["release"]?.scalar?.string.lowercased()
       doc.description = fields["description"]?.scalar?.string
       doc.previewTitle = fields["previewTitle"]?.scalar?.string
       doc.created = fields["created"]?.scalar?.string
@@ -130,10 +143,15 @@ extension Identity {
       if kind == "task", !["todo", "in-progress", "done"].contains(doc.status ?? "") {
         throw HTTPError(.unprocessableContent)
       }
-      if kind == "url",
-        !["https", "http"].contains(URL(string: doc.url ?? "")?.scheme?.lowercased() ?? "")
-      {
-        throw HTTPError(.unprocessableContent)
+      if kind == "url" {
+        guard let url = URL(string: doc.url ?? ""),
+          ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+          url.host?.isEmpty == false, url.user == nil, url.password == nil
+        else {
+          throw HTTPError(
+            .unprocessableContent,
+            message: "Use an HTTP or HTTPS URL with a hostname and no credentials.")
+        }
       }
     }
     return FileText(text: text, document: doc)
@@ -243,8 +261,22 @@ extension Identity {
       switch action {
       case "write":
         guard let text = change.text else { throw HTTPError(.badRequest) }
-        let data = Data(text.utf8)
-        let doc = try describe(change.path, data: data).document
+        var data = Data(text.utf8)
+        var doc = try describe(change.path, data: data).document
+        if doc.type == "url", doc.created == nil,
+          let opening = text.range(
+            of: text.hasPrefix("---\r\n") ? "---\r\n" : "---\n", options: .anchored)
+        {
+          var dated = text
+          let newline = text.hasPrefix("---\r\n") ? "\r\n" : "\n"
+          let created = old?.created ?? ISO8601DateFormatter().string(from: Date())
+          dated.insert(
+            contentsOf: "created: "
+              + String(decoding: try JSONEncoder().encode(created), as: UTF8.self) + newline,
+            at: opening.upperBound)
+          data = Data(dated.utf8)
+          doc = try describe(change.path, data: data).document
+        }
         if old?.type != nil && old?.type != doc.type { throw HTTPError(.conflict) }
         if old?.type != "doc", let previous = old?.id, previous != doc.id {
           throw HTTPError(.conflict)
