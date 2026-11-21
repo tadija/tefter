@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   collaboration:
-    name: Workspace and collaboration on Ubuntu 24.04
+    name: Workspace, collaboration and integrations on Ubuntu 24.04
     runs-on: ubuntu-24.04
     container: swift:6.4.3-noble
     timeout-minutes: 45
@@ -43,3 +43,4 @@ jobs:
           npx --no-install playwright-core install --with-deps chromium
           export TEFTER_TEST_CHROME="$(node --input-type=module -e 'import {chromium} from "playwright-core"; console.log(chromium.executablePath())')"
           TEFTER_TEST_BINARY=.build/release/tefter npm run test:browser
+          TEFTER_TEST_BINARY=.build/release/tefter node tests/stage3.mjs

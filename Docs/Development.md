@@ -1,6 +1,6 @@
 # Development and validation
 
-Stages 1 and 2 are complete; Stage 3 has not started. See the [specification](Specs.md) for the next acceptance gate and the [Stage 1 log](stage-1-log.md) and [Stage 2 log](stage-2-log.md) for implementation decisions and verified results.
+Stage 3 implementation and acceptance evidence are recorded in the [Stage 3 log](stage-3-log.md). Earlier-stage suites were explicitly not run during this shot at the maintainer’s request. See the [specification](Specs.md) for the next acceptance gate and the [Stage 1 log](stage-1-log.md) and [Stage 2 log](stage-2-log.md) for implementation decisions and verified results.
 
 ## Validation
 
@@ -19,3 +19,17 @@ The browser smoke test runs headless Chrome through Playwright Core. Set `TEFTER
 The [Linux workflow](../.github/workflows/linux.yml) runs the Swift, HTTP integration and browser suites on Ubuntu, including a browser session against the release executable.
 
 Stage 2 adds real RFC 6455 clients for two-client delivery, reconnect, origin/CSRF denial and human/agent revocation; HTTP/ZIP tests cover reference grants, stale search indexes, owner-controlled copies, retention and schema upgrades. The browser suite exercises Comms and sharing as well as the original workspace flow. To exercise the release executable, run `TEFTER_TEST_BINARY=.build/release/tefter npm --prefix Web run test:browser` after a release build.
+
+## Focused Stage 3 validation
+
+Build first, then run tests; do not rebuild the debug executable while an integration test is restarting it.
+
+```sh
+swift build
+npm --prefix Web run check
+npm --prefix Web run build
+python3 -m unittest discover -s Tests -p stage3.py
+node Web/tests/stage3.mjs
+```
+
+The real harness test uses `TEFTER_TEST_CODEX` (defaults to `codex` on PATH) and `TEFTER_TEST_CODEX_HOME` (defaults to `~/.codex`). It makes actual model calls using that explicitly authorized credential home; choose a dedicated test account/home where practical. Missing executable/credential directories skip this test, which is **not** evidence of adapter acceptance. Fixtures only test boundaries and protocol errors; the real Codex test is required for the harness gate. Browser validation here covers only Stage 3, using an isolated installation. This focused command does not execute earlier-stage test methods.

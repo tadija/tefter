@@ -41,7 +41,9 @@ See [Collaboration](Collaboration.md) for channel retention, sharing/export poli
 - The API paginates tree, membership and directory listings with `offset` and `limit`. Search returns at most 100 matches per offset. Editable Markdown and metadata reads/writes are bounded at 16 MiB. ZIP exports spool to a private temporary file and stream to the client. Attachments are copied in chunks.
 - Link previews allow HTTP and HTTPS. The transport checks the actual IP before each socket opens, disables proxies, follows up to three redirects, reads at most 512 KiB per transfer and times out after five seconds. The file and notes remain available if preview generation fails.
 - Private Git checkpoints run on startup and every 30 seconds under `runtime/history` using `/usr/bin/git`. The server stages validated durable files in an isolated work tree. File writes are durable before the next checkpoint.
-- Operational schema version 2 adds Stage 2 collaboration tables through an additive migration from version 1. The executable rejects unknown schema versions. Before future upgrades, stop the server and take a verified backup.
+- Operational schema version 3 adds Repo and harness/execution tables additively; collaboration tables remain intact. The executable rejects unknown schema versions. Before future upgrades, stop the server and take a verified backup.
+
+See [Integrations](Integrations.md) for Stage 3 execution/credential policy, optional executable prerequisites, and Git worktree repair after relocating a backup.
 
 ## Full-instance backup and restore
 

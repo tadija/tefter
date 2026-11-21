@@ -13,3 +13,51 @@
 - Final integration slice adds stable document/task → Repo/session references without rewriting plain Markdown, Repo/session comments with inherited permissions, separate mode-0600 SSH deploy keys/host pins, and explicit API/deployment/restore documentation. Focused checks prove link identity survives a source move, stale changes conflict, revoked target titles disappear, Repo metadata/comments export portably, and private keys do not export.
 - Extended Stage 3 test run: six integration methods passed, including actual Codex 0.171.0 turns, a controlled in-flight revocation race (no output delivered after revoke), real Git clone/worktree/merge/push, two separate checkouts of one granted installation Repo, plugin process-group timeout/descendant termination, credential/export isolation and private asset-root rejection. A router parameter-name collision introduced while adding comments was detected by startup tests and corrected before this passing run. Existing Stage 2 migration test's expected schema was updated to 3; that suite was not executed.
 - Focused browser flow passed Repo creation, actual checkout/status, durable Repo comments, execution-without-grant denial and unavailable-capability messaging. Svelte check reports zero errors/warnings and production assets build successfully.
+
+## Final Stage 3 acceptance report
+
+Stage 3 acceptance checks passed on macOS arm64, with the explicitly approved audio exception. Earlier-stage acceptance/regression suites were not run, as instructed; this report does not claim a fresh all-stages regression pass.
+
+| Requirement | Result and evidence |
+| --- | --- |
+| Both Repo ownership scopes | Passed: installation grants, private space ownership, member/admin distinctions, immediate revocation, denied cross-space status/history and restart persistence. One installation registration cloned into two explicitly granted spaces produced independent checkouts. |
+| Separate registration, credentials and checkout | Passed: registration never executes a location; checkout creation is separately privileged; mode-0600 SSH key/host pins remain outside portable files, ZIPs and content history. Credential storage/access/export were tested; a real private SSH server was not exercised. |
+| Real harness and durable sessions | Passed with Codex CLI 0.171.0: actual start and two model turns, four persisted conversation entries, finish, restart and history retrieval. Separate execution policy denied ungranted starts and revoked history/comments. A controlled race fixture additionally proved in-flight output is withheld after grant revocation; that fixture is not the real-adapter acceptance evidence. |
+| Honest capabilities | Start/message/status supported; resume, TTY, live streaming and cancellation explicitly unavailable in API/UI. Ephemeral CLI turns use the saved transcript, not harness-owned resumable context. |
+| Task/Repo/session references and comments | Passed: optional session links; stable file-backed document/task references; source move preservation; stale revision denial; no cached title after target revoke; Repo/session comments reuse inherited authorization and durable concurrency/edit semantics. |
+| Git integration and explicit review | Passed against real source/checkout/worktree/bare remote. A completed turn never merged/pushed; false/stale approval failed; owner-approved fast-forward merge and separately approved session-branch push worked. No force push or automatic main-branch publication. |
+| Plugins | Passed real word-count command/hook execution, admin/CSRF denials, protocol/version checks, exit failure, malformed response, bounded output, timeout, descendant termination and installation persistence. Trusted host execution is explicit; no sandbox claim. |
+| Audio | Maintainer approved the documented deferral on 2026-11-22. No working media or fake controls claimed. Video remains future-only. |
+| Deployment and documentation | Debug/release builds and isolated local runs passed; production assets compiled; README/operations/integration/upgrade/backup-repair instructions updated. No external deployment target was supplied or deployed. |
+
+### Commands and results
+
+- `swift build`: passed.
+- `swift build -c release`: passed.
+- `npm --prefix Web run check`: passed, zero errors/warnings.
+- `npm --prefix Web run build`: passed.
+- `python3 -m unittest discover -s Tests -p stage3.py`: six methods passed, no skips (final run 19.705 seconds).
+- `node Web/tests/stage3.mjs`: passed with debug executable.
+- `TEFTER_TEST_BINARY=.build/release/tefter node Web/tests/stage3.mjs`: passed.
+- Local Markdown link validation and `git diff --check`: passed.
+- Stage 1/2 HTTP, Swift storage and original browser suites: **not run at maintainer request**. Existing schema-upgrade expectation was adjusted from 2 to 3 without executing that earlier suite.
+- Linux CI configuration includes the new focused browser flow, but CI/Linux/WSL were not executed during this shot. CI's missing-Codex skip does not substitute for the successful local real-Codex acceptance test.
+
+### Operational limits and readiness
+
+- The local Codex adapter is read-only and transcript-based. Linked worktrees are available for operator/external editing; the adapter does not edit or automatically enter them. Revocation blocks delivery/new reads but does not cancel an already running turn; the deadline bounds it.
+- Git review covers committed changes; merges are fast-forward-only and pushes publish only the session branch. Private Git authentication supports separately configured noninteractive SSH deploy keys with pinned hosts; HTTPS tokens and interactive SSH agents are unavailable. Actual private-SSH authentication remains an operator deployment check.
+- Plugin hooks are explicit privileged dispatch points, not automatic triggers from ordinary user activity. Plugin executables are trusted OS processes; manifests contain no sandbox promise. Stderr is deliberately withheld from API/logs.
+- Ordinary space exports omit execution records/comments to preserve separate execution authorization. Full-instance backups retain them. Relocated backups require documented `git worktree repair` and review of external executable/credential-home paths; this is not an automatically repaired restore.
+- Existing Homebrew Argon2 emits a macOS-15-library versus macOS-14-target linker warning. Use compatible native libraries on the deployment host; Linux/WSL and an external production environment were not newly validated.
+- Ready for maintainer Stage 3 review. No unapproved Stage 3 product-scope exception remains. A fresh complete-regression claim and target-host release verification remain outside this shot's validation evidence; earlier suites were intentionally skipped, not declared green.
+
+Implementation commits:
+
+- `9079341`: dual-scope Repo registration and explicit grants.
+- `941a536`: capability-driven real Codex adapter, privileged execution and durable conversations.
+- `721ecab`: separate checkouts/worktrees, committed review and explicit merge/push approval.
+- `4dbd348`: documented and approved audio exception.
+- `9dcf52e`: trusted versioned JSON plugins and real example.
+- `22e8189`: stable integration references, comments, SSH credential isolation and focused security/browser coverage.
+- Final documentation/report commit follows these implementation commits.
