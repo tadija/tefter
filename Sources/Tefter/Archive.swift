@@ -94,6 +94,9 @@ extension Identity {
       try zip.add(".tefter/views.json", JSONEncoder().encode(settings))
     }
     if folder == nil {
+      for repo in try listRepos(space: space, user: user) where repo.space == space {
+        try zip.add(".tefter/repos/" + repo.id + ".json", JSONEncoder().encode(repo))
+      }
       let copyShared = request.uri.queryParameters.get("includeShared") == "true"
       for ref in try referenceFiles(space) {
         // A reference never embeds a cached title, snippet or copy of the source.

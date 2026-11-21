@@ -39,7 +39,7 @@ actor Identity {
     self.db = try Database(path: home.appendingPathComponent("runtime/tefter.sqlite").path)
     self.dummyHash = try Self.hash(Self.token())
     let schema = try db.rows("PRAGMA user_version").first?["user_version"]
-    guard schema == "0" || schema == "1" || schema == "2" else {
+    guard schema == "0" || schema == "1" || schema == "2" || schema == "3" else {
       throw HTTPError(.conflict, message: "Unsupported operational schema version.")
     }
     for sql in [
@@ -57,7 +57,9 @@ actor Identity {
     try db.execute("CREATE TABLE IF NOT EXISTS agent_grants(space TEXT REFERENCES spaces,id TEXT REFERENCES agents,PRIMARY KEY(space,id))")
     try db.execute("CREATE TABLE IF NOT EXISTS channel_cursors(space TEXT REFERENCES spaces,channel TEXT,sequence INTEGER NOT NULL,PRIMARY KEY(space,channel))")
     try db.execute("CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,source TEXT REFERENCES spaces,entity TEXT NOT NULL,target TEXT REFERENCES spaces,copies INTEGER NOT NULL)")
-    try db.execute("PRAGMA user_version=2")
+    try db.execute("CREATE TABLE IF NOT EXISTS repo_ownership(id TEXT PRIMARY KEY,space TEXT REFERENCES spaces)")
+    try db.execute("CREATE TABLE IF NOT EXISTS repo_grants(repo TEXT REFERENCES repo_ownership,space TEXT REFERENCES spaces,PRIMARY KEY(repo,space))")
+    try db.execute("PRAGMA user_version=3")
   }
 
   static func token() -> String {

@@ -40,7 +40,7 @@ extension Identity {
     for name in ["entities.json", "views.json"] where try meta.info(name) != nil {
       try copy(".tefter/" + name)
     }
-    for name in ["people", "references"] where try meta.info(name) != nil {
+    for name in ["people", "references", "repos"] where try meta.info(name) != nil {
       let dir = try meta.directory(name)
       for file in try dir.entries() where file.hasSuffix(name == "people" ? ".md" : ".json") {
         try copy(".tefter/" + name + "/" + file)

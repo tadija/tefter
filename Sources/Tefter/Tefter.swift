@@ -98,6 +98,7 @@ enum Tefter {
     registerCollaboration(router, identity)
     registerComms(router, identity)
     registerSharing(router, identity)
+    registerRepos(router, identity)
     try await identity.purgeComms()
     router.get("/api/v1/health") { _, _ in Health(status: "ok") }
     router.get("/api/v1/ready") { _, _ in Health(status: "ready") }
