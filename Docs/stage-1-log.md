@@ -11,3 +11,9 @@
 - Replaced the memory-backed ZIP builder with a private, streamed ZIP64-capable archive. A folder-export test includes a 17 MiB attachment, checks ZIP integrity, and verifies that sibling content and comments are excluded.
 - The server supplies the URL saved timestamp on API creation and rejects multi-valued task references. Existing front matter authors are available to search. External rename reconciliation preserved comments, and an imported duplicate ID produced an explicit conflict.
 - Membership revocation removes access and the current People entry. The non-secret attribution profile remains portable with comments the former member authored.
+
+## Stage 1 acceptance gate
+
+A fresh local clone of 5c2df06 passed on macOS arm64. Swift debug and release builds succeeded. Both Swift storage tests and all eight Python HTTP integration tests passed. Svelte type checking reported zero diagnostics, Vite built the SPA, and headless Chrome passed sign-in, editing, comments, search, reload and logout. A separately copied release executable served the external assets and authenticated a newly bootstrapped account.
+
+Stage 1 is ready for maintainer review before Stage 2. Linux and WSL execution remain unverified. The installed Homebrew libargon2 targets macOS 15 and produced a linker warning against the package’s macOS 14 deployment target. Deployment on macOS 14 needs a compatible build of that library.
