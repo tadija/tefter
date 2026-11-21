@@ -1,6 +1,6 @@
 # Development and validation
 
-Stage 1 is complete; Stage 2 has not started. See the [specification](Specs.md) for the next acceptance gate and the [Stage 1 log](stage-1-log.md) for implementation decisions and verified results.
+Stages 1 and 2 are complete; Stage 3 has not started. See the [specification](Specs.md) for the next acceptance gate and the [Stage 1 log](stage-1-log.md) and [Stage 2 log](stage-2-log.md) for implementation decisions and verified results.
 
 ## Validation
 
@@ -17,3 +17,5 @@ npm --prefix Web run test:browser
 The browser smoke test runs headless Chrome through Playwright Core. Set `TEFTER_TEST_CHROME` to a local Chromium executable if needed. The HTTP and browser tests start isolated installations and exercise the real server, filesystem, SQLite and Git. Optional mail is tested with a loopback TLS SMTP fixture and disposable certificate.
 
 The [Linux workflow](../.github/workflows/linux.yml) runs the Swift, HTTP integration and browser suites on Ubuntu, including a browser session against the release executable.
+
+Stage 2 adds real RFC 6455 clients for two-client delivery, reconnect, origin/CSRF denial and human/agent revocation; HTTP/ZIP tests cover reference grants, stale search indexes, owner-controlled copies, retention and schema upgrades. The browser suite exercises Comms and sharing as well as the original workspace flow. To exercise the release executable, run `TEFTER_TEST_BINARY=.build/release/tefter npm --prefix Web run test:browser` after a release build.

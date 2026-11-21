@@ -1,8 +1,8 @@
 # Tefter
 
-Tefter is a self-hosted workspace for Markdown documents, tasks, sprints, releases and saved URLs. Each space is an ordinary directory, so your content stays readable outside Tefter. Personal and shared spaces bring together editing, comments and search.
+Tefter is a self-hosted workspace for Markdown documents, tasks, sprints, releases, saved URLs and Comms channels. Each space is an ordinary directory, so your content stays readable outside Tefter. Personal and shared spaces bring together editing, comments, search and permission-checked cross-space references.
 
-Stage 1 (the core workspace) is complete. Stage 2 (collaboration) has not started.
+Stages 1 (core workspace) and 2 (collaboration) are complete. Stage 3 has not started.
 
 ## Build and run
 
@@ -35,4 +35,4 @@ Open http://127.0.0.1:2909/ and sign in. Use **Account and administration** to a
 - [Collaboration](Docs/Collaboration.md): Comms, sharing, agent access and upgrades.
 - [Development](Docs/Development.md): validation commands and test setup.
 - [Specification](Docs/Specs.md): product direction and the three implementation stages.
-- [Stage 1 log](Docs/stage-1-log.md): decisions and acceptance results.
+- [Stage 1 log](Docs/stage-1-log.md) and [Stage 2 log](Docs/stage-2-log.md): decisions and acceptance results.
