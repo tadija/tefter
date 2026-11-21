@@ -1,10 +1,19 @@
 # Tefter
 
-Tefter is a self-hosted workspace for Markdown documents, tasks, sprints, releases and saved URLs. Each space is an ordinary directory. SQLite stores accounts, memberships and sessions, and provides a rebuildable FTS5 index. See the [approved v1 specification](Docs/tefter-v1-specs.md) and [Stage 1 decision log](Docs/stage-1-log.md).
+Tefter is a multi-platform, self-hosted workspace for Markdown documents, tasks, sprints, releases and saved URLs. Each space is an ordinary directory. SQLite stores accounts, memberships and sessions, and provides a rebuildable FTS5 index. See the [approved v1 specification](Docs/tefter-v1-specs.md) and [Stage 1 decision log](Docs/stage-1-log.md).
 
 ## Build and run
 
-Use a Swift toolchain compatible with Package.resolved (tested with Swift 6.4), a recent Node LTS with npm for the asset build, Git, pkg-config, SQLite with FTS5, libargon2 and libcurl 7.85 or newer. On Debian 12 or later, install `git pkg-config libargon2-dev libsqlite3-dev libcurl4-openssl-dev` alongside the Swift toolchain. On macOS install Xcode command-line tools and `brew install argon2 pkg-config`.
+On Ubuntu 24.04, install Swift 6.4.3 and Node 24 for the build, then install the native dependencies:
+
+```sh
+sudo apt-get update
+sudo apt-get install git pkg-config libargon2-dev libsqlite3-dev libcurl4-openssl-dev zlib1g-dev
+```
+
+The server uses SQLite with FTS5 and libcurl 7.85 or newer. CI runs the Swift, HTTP integration and browser suites on Ubuntu, including a browser session against the release executable. See the [Linux workflow](.github/workflows/linux.yml) and [Swift installation instructions for Ubuntu](https://www.swift.org/install/linux/ubuntu/24_04/).
+
+For macOS development, install the Xcode command-line tools and run `brew install argon2 pkg-config`.
 
 From a fresh checkout, build the compiled browser assets and executable, then create the first account. The CLI prompts for a password or reads one line from standard input.
 

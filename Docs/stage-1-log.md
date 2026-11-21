@@ -16,4 +16,8 @@
 
 A fresh local clone of 5c2df06 passed on macOS arm64. Swift debug and release builds succeeded. Both Swift storage tests and all eight Python HTTP integration tests passed. Svelte type checking reported zero diagnostics, Vite built the SPA, and headless Chrome passed sign-in, editing, comments, search, reload and logout. A separately copied release executable served the external assets and authenticated a newly bootstrapped account.
 
-Stage 1 is ready for maintainer review before Stage 2. Linux and WSL execution remain unverified. The installed Homebrew libargon2 targets macOS 15 and produced a linker warning against the package’s macOS 14 deployment target. Deployment on macOS 14 needs a compatible build of that library.
+Stage 1 is ready for maintainer review before Stage 2. Linux and WSL had yet to be exercised at that checkpoint. The installed Homebrew libargon2 targets macOS 15 and produced a linker warning against the package’s macOS 14 deployment target. Deployment on macOS 14 needs a compatible build of that library.
+
+## Ubuntu verification
+
+On Ubuntu 24.04.5 ARM64 with Swift 6.4.3 and Node 24, the debug and release builds, two Swift storage tests, eight HTTP integration tests, Svelte checks and Vite build passed. Headless Chromium passed sign-in, document editing, comments, search, reload and logout against the release executable. The Linux GitHub Actions workflow targets Ubuntu 24.04 x86-64 on pushes to main and pull requests, and supports manual runs.

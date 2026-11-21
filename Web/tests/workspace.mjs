@@ -19,15 +19,16 @@ const env = { ...process.env, TEFTER_HOME: home, TEFTER_PORT: String(port) };
 const url = "http://127.0.0.1:" + port;
 const email = "reader@example.test";
 const password = "local browser password";
+const binary = process.env.TEFTER_TEST_BINARY || ".build/debug/tefter";
 let server, browser;
 try {
-  const bootstrap = spawnSync(".build/debug/tefter", ["bootstrap", email], {
+  const bootstrap = spawnSync(binary, ["bootstrap", email], {
     cwd,
     env,
     input: password + "\n",
   });
   assert.equal(bootstrap.status, 0, bootstrap.stderr.toString());
-  server = spawn(".build/debug/tefter", [], { cwd, env, stdio: "ignore" });
+  server = spawn(binary, [], { cwd, env, stdio: "ignore" });
   for (let attempt = 0; attempt < 100; attempt++) {
     if (
       await fetch(url + "/api/v1/ready").then(
