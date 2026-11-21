@@ -45,15 +45,18 @@ static size_t receive(char *bytes, size_t size, size_t count, void *context) {
     return n;
 }
 
-int tefter_fetch_html(const char *url, char **body, size_t *length) {
+int tefter_fetch(const char *url, int image, char **body, size_t *length, char **effective) {
     CURL *curl = curl_easy_init();
     if (!curl) return 0;
     struct buffer buffer = {NULL,0};
     curl_easy_setopt(curl,CURLOPT_URL,url);
     curl_easy_setopt(curl,CURLOPT_PROXY,"");
     curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);
-    curl_easy_setopt(curl,CURLOPT_PROTOCOLS_STR,"http,https");
-    curl_easy_setopt(curl,CURLOPT_REDIR_PROTOCOLS_STR,"http,https");
+    if (curl_easy_setopt(curl,CURLOPT_PROTOCOLS_STR,"http,https") != CURLE_OK ||
+        curl_easy_setopt(curl,CURLOPT_REDIR_PROTOCOLS_STR,"http,https") != CURLE_OK) {
+        curl_easy_cleanup(curl);
+        return 0;
+    }
     curl_easy_setopt(curl,CURLOPT_DISALLOW_USERNAME_IN_URL,1L);
     curl_easy_setopt(curl,CURLOPT_FOLLOWLOCATION,1L);
     curl_easy_setopt(curl,CURLOPT_MAXREDIRS,3L);
@@ -69,7 +72,10 @@ int tefter_fetch_html(const char *url, char **body, size_t *length) {
     curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&status);
     curl_easy_getinfo(curl,CURLINFO_CONTENT_TYPE,&type);
     int ok = result == CURLE_OK && status >= 200 && status < 300 &&
-        type && strncasecmp(type,"text/html",9)==0 && buffer.bytes;
+        type && (image ? strncasecmp(type,"image/",6)==0 : strncasecmp(type,"text/html",9)==0) && buffer.bytes;
+    char *final_url = NULL;
+    curl_easy_getinfo(curl,CURLINFO_EFFECTIVE_URL,&final_url);
+    if (ok && final_url) *effective = strdup(final_url);
     curl_easy_cleanup(curl);
     if (!ok) { free(buffer.bytes); return 0; }
     *body = buffer.bytes;
@@ -96,7 +102,11 @@ int tefter_send_mail(const char *server, const char *user, const char *password,
     if (!recipients) { curl_easy_cleanup(curl); return 0; }
     struct mail_payload payload = {message,strlen(message)};
     curl_easy_setopt(curl,CURLOPT_URL,server);
-    curl_easy_setopt(curl,CURLOPT_PROTOCOLS_STR,"smtp,smtps");
+    if (curl_easy_setopt(curl,CURLOPT_PROTOCOLS_STR,"smtp,smtps") != CURLE_OK) {
+        curl_slist_free_all(recipients);
+        curl_easy_cleanup(curl);
+        return 0;
+    }
     curl_easy_setopt(curl,CURLOPT_USE_SSL,(long)CURLUSESSL_ALL);
     curl_easy_setopt(curl,CURLOPT_PROXY,"");
     curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);

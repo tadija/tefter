@@ -3,11 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:browser": "node tests/workspace.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6",
+    "@tsconfig/svelte": "^5.0.9",
+    "@types/node": "^26.6.6",
+    "playwright-core": "^1.65.1",
     "svelte": "^5",
+    "svelte-check": "^4.7.8",
     "typescript": "^5",
     "vite": "^7"
   },

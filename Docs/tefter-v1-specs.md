@@ -259,3 +259,9 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 
 ## 12. Completion definition
 v1 is complete when Stage 1, 2 and 3 mandatory acceptance gates pass, the repository builds from a clean checkout, security/portability tests pass, README explains deployment/backup/recovery, and remaining exceptions are explicitly approved and documented. **A feature represented only by scaffolding or a nonfunctional UI does not count as implemented.**
+
+### Stage 1 implementation notes
+
+- A pending move or deletion is recorded in a version-1 `.tefter/relocation.json` before changing the directory entry. The next scan reconciles the portable ID manifest and removes the journal. A conflicting external edit during interrupted relocation is reported for operator reconciliation.
+- View settings store a revision token, directory-to-view defaults and named views. Relative paths are scoped to the owning space. Comment snapshots carry a revision token and retain deleted comment identities for reply attribution.
+- Operational schema version 1 uses SQLite parameter binding and Argon2id hashes. Private Git checkpoints are per space in `runtime/history/<space-id>.git`. Cold backups include these repositories along with the operational database and canonical files.

@@ -63,6 +63,8 @@ class Workspace(unittest.TestCase):
             self.assertIn(flag, cookie)
         return {"Cookie": cookie.split(";")[0], "X-CSRF-Token": data["csrf"]}
 
+
+class Identity(Workspace):
     def test_membership_and_recovery(self):
         a = self.admin
         user = self.call("POST", "users", {"email": "member@example.test", "password": self.password}, a)[1]["id"]
