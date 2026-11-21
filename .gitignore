@@ -1,0 +1,5 @@
+.DS_Store
+.build/
+.swiftpm/
+Web/node_modules/
+Web/dist/
