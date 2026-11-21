@@ -157,7 +157,8 @@ extension Identity {
   func messageExecution(_ id: String, space: String, message: String, user: String) async throws -> ExecutionRecord {
     try validateSessionMessage(message)
     var record = try execution(id, space: space, user: user)
-    guard record.status != "running", record.status != "finished", record.conversation.count < 100 else {
+    guard record.status != "running", record.status != "finished", record.conversation.count < 100,
+      record.conversation.reduce(0, { $0 + $1.text.utf8.count }) < 8 * 1024 * 1024 else {
       throw HTTPError(.conflict)
     }
     let policy = try executionPolicy(record.connection, space: space, user: user)

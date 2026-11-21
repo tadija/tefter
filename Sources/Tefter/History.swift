@@ -36,8 +36,13 @@ extension Identity {
         }
       }
     }
+    let integrationIDs = try db.rows("SELECT id FROM repo_ownership WHERE space=? UNION SELECT repo AS id FROM repo_grants WHERE space=? UNION SELECT id FROM executions WHERE space=?", [space, space, space]).compactMap { $0["id"] }
+    for id in integrationIDs {
+      let comments = try metadata(root).directory("comments", create: true)
+      if try comments.info(id + ".json") != nil { try copy(".tefter/comments/" + id + ".json") }
+    }
     let meta = try metadata(root)
-    for name in ["entities.json", "views.json"] where try meta.info(name) != nil {
+    for name in ["entities.json", "views.json", "integration-links.json"] where try meta.info(name) != nil {
       try copy(".tefter/" + name)
     }
     for name in ["people", "references", "repos"] where try meta.info(name) != nil {

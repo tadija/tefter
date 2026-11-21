@@ -1,7 +1,9 @@
 <script lang="ts">
+  import Comments from "./Comments.svelte";
   import { onMount } from "svelte";
   import { api } from "./api";
-  let { space }: { space: string } = $props();
+  let { space, user, people }: { space: string; user: string; people: {id: string; name: string}[] } = $props();
+  let commentRepo = $state("");
   type Repo = { id: string; space?: string; name: string; location: string; description: string };
   let repos = $state<Repo[]>([]), error = $state(""), loading = $state(true);
   let status = $state<Record<string, {available: boolean; branch?: string; head?: string; status?: string; commits?: string}>>({});
@@ -37,6 +39,8 @@
   <article><h3>{repo.name}</h3><p>{repo.description}</p><code>{repo.location}</code>
     <p>{repo.space ? "Owned by this space" : "Installation repository · explicitly granted"}</p>
     <small>Reference: {repo.id}</small>
+    <button onclick={() => commentRepo = commentRepo === repo.id ? "" : repo.id}>Comments</button>
+    {#if commentRepo === repo.id}{#key repo.id}<Comments base={`spaces/${space}/repos/${repo.id}/`} path="" {user} {people} />{/key}{/if}
     <button onclick={() => inspect(repo.id)}>Status and commits</button>
     <button onclick={() => inspect(repo.id, true)}>Create separate checkout (installation admin)</button>
     {#if status[repo.id]}{#if status[repo.id].available}

@@ -1,8 +1,9 @@
 <script lang="ts">
+  import Comments from "./Comments.svelte";
   import { onMount } from "svelte";
   import { api, listing } from "./api";
   import { preview } from "./markdown";
-  let {space}: {space: string} = $props();
+  let {space, user, people}: {space: string; user: string; people: {id: string; name: string}[]} = $props();
   type Harness = {id: string; name: string; capabilities: Record<string, boolean>};
   type Session = {id: string; status: string; connection: string; initiator: string; task?: string; repo?: string; conversation: {role: string; text: string; created: string}[]};
   let harnesses = $state<Harness[]>([]), sessions = $state<Session[]>([]);
@@ -61,6 +62,7 @@
       <button disabled={busy} onclick={() => gitAction("push")}>Approve push of reviewed session branch (space owner)</button>
     {/if}
   {/if}
+  {#key selected.id}<Comments base={base()+`executions/${selected.id}/`} path="" {user} {people} />{/key}
   <button disabled={busy || selected.status === "running" || selected.status === "finished"} onclick={finish}>Finish session</button>
 {/if}
 <form onsubmit={send}>

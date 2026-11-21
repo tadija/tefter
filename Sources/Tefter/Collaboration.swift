@@ -69,6 +69,11 @@ extension Identity {
     let root = try root(space, user: user)
     let doc = try document(change.path, root: root, identify: true).document
     guard let id = doc.id else { throw HTTPError(.conflict) }
+    return try mutateThread(space, id: id, root: root, change: change, user: user, request: request)
+  }
+
+  func mutateThread(_ space: String, id: String, root: Directory, change: CommentChange,
+    user: String, request: Request) throws -> ThreadFile {
     var thread = try thread(id, root: root)
     guard thread.revision == change.revision else { throw HTTPError(.conflict) }
     if let body = change.body, body.isEmpty || body.utf8.count > 65536 {

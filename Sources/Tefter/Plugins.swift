@@ -110,7 +110,7 @@ extension Identity {
         if !decoded.ok { outcome = "plugin-error" }
       } else { outcome = "invalid-response" }
     }
-    try audit(user, "plugin-" + outcome, id + "/" + requestID)
+    try audit(user, "plugin-" + outcome, id + "/" + requestID + "/exit-" + String(result.exitCode))
     try requireAdmin(user)
     return PluginRunResult(id: requestID, outcome: outcome, exitCode: result.exitCode, response: response)
   }

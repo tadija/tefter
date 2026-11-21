@@ -24,8 +24,7 @@ extension Identity {
       "-c", "credential.helper=", "-c", "protocol.ext.allow=never", "-c", "protocol.allow=never",
       "-c", "protocol.file.allow=always", "-c", "protocol.https.allow=always", "-c", "protocol.ssh.allow=always",
       "-c", "user.name=Tefter", "-c", "user.email=workspace@localhost"
-    ] + arguments, environment: ["PATH":"/usr/bin:/bin", "HOME":home.appendingPathComponent("runtime").path,
-      "GIT_CONFIG_NOSYSTEM":"1", "GIT_CONFIG_GLOBAL":"/dev/null", "GIT_TERMINAL_PROMPT":"0"],
+    ] + arguments, environment: try gitEnvironment(at: path),
       directory: path, input: Data(), timeout: 30)
     guard result.outcome == "completed" else {
       throw HTTPError(.conflict, message: "Git operation " + result.outcome + "; inspect the operator-managed checkout.")

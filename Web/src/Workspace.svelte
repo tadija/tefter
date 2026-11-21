@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { preview } from "./markdown";
+  import IntegrationLinks from "./IntegrationLinks.svelte";
   import Sessions from "./Sessions.svelte";
   import Repos from "./Repos.svelte";
   import Comms from "./Comms.svelte";
@@ -343,7 +344,7 @@
         {name}
       </button>{/each}
   </details>
-  {#if mode === "Sessions"}<Sessions {space} />{:else if mode === "Repos"}<Repos {space} />{:else if mode === "Comms"}<Comms
+  {#if mode === "Sessions"}<Sessions {space} {user} {people} />{:else if mode === "Repos"}<Repos {space} {user} {people} />{:else if mode === "Comms"}<Comms
       {space}
       {people}
       documents={tree.documents}
@@ -632,7 +633,7 @@
               Delete
             </button>
           </details>{/if}
-        {#if selected}{#key selected.path}<Comments
+        {#if selected}{#key selected.path}<IntegrationLinks {space} path={selected.path} /><Comments
               {people}
               base={base()}
               path={selected.path}

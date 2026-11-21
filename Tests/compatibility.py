@@ -33,7 +33,7 @@ class Compatibility(Workspace):
         self.assertEqual(len(self.call('GET',route,session=a)[1]['messages']),1)
         self.assertFalse(oldpath.exists())
         with sqlite3.connect(home/'runtime/tefter.sqlite') as db:
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],2)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],3)
         # Expiring every file must not reset the durable sequence high-water mark.
         logs[0].write_text(json.dumps(dict(message,created=old['created']))+'\n')
         self.assertEqual(self.call('GET',route,session=a)[1]['messages'],[])

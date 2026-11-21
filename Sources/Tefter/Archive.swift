@@ -94,8 +94,19 @@ extension Identity {
       try zip.add(".tefter/views.json", JSONEncoder().encode(settings))
     }
     if folder == nil {
-      for repo in try listRepos(space: space, user: user) where repo.space == space {
-        try zip.add(".tefter/repos/" + repo.id + ".json", JSONEncoder().encode(repo))
+      let links = try integrationLinkFile(space)
+      if !links.links.isEmpty { try zip.add(".tefter/integration-links.json", JSONEncoder().encode(links)) }
+      for repo in try listRepos(space: space, user: user) {
+        if repo.space == space {
+          try zip.add(".tefter/repos/" + repo.id + ".json", JSONEncoder().encode(repo))
+        } else {
+          try zip.add(".tefter/repo-references/" + repo.id + ".json", JSONSerialization.data(withJSONObject: ["version":1, "id":repo.id, "scope":"installation"]))
+        }
+        let comments = try thread(repo.id, root: root)
+        if !comments.comments.isEmpty {
+          participants.formUnion(comments.comments.map(\.author))
+          try zip.add(".tefter/comments/" + repo.id + ".json", JSONEncoder().encode(comments))
+        }
       }
       let copyShared = request.uri.queryParameters.get("includeShared") == "true"
       for ref in try referenceFiles(space) {
