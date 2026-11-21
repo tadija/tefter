@@ -45,11 +45,6 @@ extension Identity {
     let rows = try db.rows(
       "SELECT users.id,email FROM users JOIN members ON members.user=users.id WHERE space=?",
       [space])
-    let expected = Set(rows.compactMap { $0["id"].map { $0 + ".md" } })
-    for name in try dir.entries() where !expected.contains(name) && name.hasSuffix(".md") {
-      guard unlinkat(dir.fd, name, 0) == 0 else { throw Directory.failure() }
-      try dir.sync()
-    }
     for row in rows {
       let name = row["id"]! + ".md"
       if try dir.info(name) == nil {

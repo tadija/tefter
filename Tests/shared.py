@@ -49,6 +49,13 @@ class Shared(Workspace):
         self.call("DELETE",base+"members",{"user":uid},a,204)
         self.call("GET",base+"file?path=Meeting/notes.md",session=b,expected=404)
         self.call("GET",base+"export",session=b,expected=404)
+        remaining = self.call("GET",base+"people",session=a)[1]["people"]
+        self.assertNotIn(uid,[p["id"] for p in remaining])
+        conn = http.client.HTTPConnection("127.0.0.1",self.port)
+        conn.request("GET","/api/v1/"+base+"export?folder=Meeting",headers=a)
+        with ZipFile(io.BytesIO(conn.getresponse().read())) as z:
+            self.assertIn(b"writer@example.test",z.read(".tefter/people/"+uid+".md"))
+        conn.close()
         self.stop()
         with sqlite3.connect(Path(self.home.name)/"runtime/tefter.sqlite") as db:
             db.execute("UPDATE sessions SET expires=0 WHERE user=?",(uid,))

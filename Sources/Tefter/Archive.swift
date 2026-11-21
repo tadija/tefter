@@ -71,12 +71,14 @@ extension Identity {
     }
     let meta = try metadata(root)
     var ids = Set<String>()
+    var participants = Set(try people(space, user: user).people.map(\.id))
     for doc in tree.documents where included(doc.path) {
       let (dir, name) = try root.parent(doc.path)
       try zip.add(doc.path, from: dir, name: name)
       if let id = doc.id {
         ids.insert(id)
         let comments = try thread(id, root: root)
+        participants.formUnion(comments.comments.map(\.author))
         if !comments.comments.isEmpty {
           try zip.add(".tefter/comments/" + id + ".json", JSONEncoder().encode(comments))
         }
@@ -97,9 +99,12 @@ extension Identity {
         try zip.add(".tefter/references/" + name, references.read(name))
       }
     }
-    for person in try people(space, user: user).people {
-      try zip.add(
-        ".tefter/people/" + person.id + ".md", meta.directory("people").read(person.id + ".md"))
+    let profiles = try meta.directory("people")
+    for id in participants.sorted() where UUID(uuidString: id) != nil {
+      let name = id + ".md"
+      if try profiles.info(name) != nil {
+        try zip.add(".tefter/people/" + name, profiles.read(name))
+      }
     }
     try zip.add(
       ".tefter/MANIFEST.txt",

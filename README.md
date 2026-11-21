@@ -75,3 +75,5 @@ npm --prefix Web run test:browser
 ```
 
 The browser smoke test runs headless Chrome through Playwright Core. Set `TEFTER_TEST_CHROME` to a local Chromium executable if needed. The HTTP and browser tests start isolated installations and exercise the real server, filesystem, SQLite and Git. Optional mail is tested with a loopback TLS SMTP fixture and disposable certificate.
+
+If checkpoints repeatedly fail after an unclean shutdown, stop the server and back up the installation. With no Git process using the affected private repository, inspect it with `git --git-dir="$TEFTER_HOME/runtime/history/SPACE-ID.git" fsck`. Clear a confirmed stale Git lock before restarting. The next checkpoint reads the canonical space files again.
