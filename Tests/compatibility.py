@@ -34,6 +34,12 @@ class Compatibility(Workspace):
         self.assertFalse(oldpath.exists())
         with sqlite3.connect(home/'runtime/tefter.sqlite') as db:
             self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],2)
+        # Expiring every file must not reset the durable sequence high-water mark.
+        logs[0].write_text(json.dumps(dict(message,created=old['created']))+'\n')
+        self.assertEqual(self.call('GET',route,session=a)[1]['messages'],[])
+        following=self.call('POST',route,{'body':'after expiry','nonce':str(uuid.uuid4())},a)[1]
+        self.assertGreater(following['sequence'],message['sequence'])
+        self.assertEqual(self.call('GET',route+'?after='+str(message['sequence']),session=a)[1]['messages'][0]['id'],following['id'])
         self.call('POST',base+'write',{'path':'comms/hijack.md','text':'no'},a,400)
         self.call('POST',base+'directory',{'path':'nested'},a,204)
         self.call('POST',base+'directory',{'path':'nested/comms'},a,204)

@@ -241,7 +241,7 @@ extension Identity {
     guard recent < 20 else { throw HTTPError(.tooManyRequests) }
     try db.execute("INSERT OR IGNORE INTO channel_cursors VALUES(?,?,0)", [space, channel])
     try db.execute(
-      "UPDATE channel_cursors SET sequence=max(sequence,?)+1 WHERE space=? AND channel=?",
+      "UPDATE channel_cursors SET sequence=max(sequence,CAST(? AS INTEGER))+1 WHERE space=? AND channel=?",
       [String(highwater), space, channel])
     let sequence = Int(
       try db.rows(
