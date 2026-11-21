@@ -2,7 +2,7 @@
 
 Tefter is a self-hosted workspace for Markdown documents, tasks, sprints, releases, saved URLs and Comms channels. Each space is an ordinary directory, so your content stays readable outside Tefter. Personal and shared spaces bring together editing, comments, search and permission-checked cross-space references.
 
-Stage 3 adds explicitly authorized Repos, read-only Codex conversations, durable execution records, Git review/approval and trusted executable plugins. Audio is deferred by a maintainer-approved exception. See the [Stage 3 report](Docs/stage-3-log.md) for validation and remaining limits.
+Connect Git repositories, work with authorized agents, review changes before merging or pushing, and talk in channel audio rooms. Optional administrator-installed plugins add trusted commands.
 
 ## Build and run
 
@@ -34,7 +34,6 @@ Open http://127.0.0.1:2909/ and sign in. Use **Account and administration** to a
 - [Operations](Docs/Operations.md): configuration, deployment, storage, backup and recovery.
 - [Collaboration](Docs/Collaboration.md): Comms, sharing, agent access and upgrades.
 - [Integrations](Docs/Integrations.md): Repos, execution grants, Codex, Git approval, plugins and upgrade/restore steps.
-- [Audio exception](Docs/Audio-evaluation.md): approved deferral and deployment evaluation.
+- [Audio](Docs/Audio-evaluation.md): voice rooms, connectivity and deployment requirements.
 - [Development](Docs/Development.md): validation commands and test setup.
-- [Specification](Docs/Specs.md): product direction and the three implementation stages.
-- [Stage 1 log](Docs/stage-1-log.md) and [Stage 2 log](Docs/stage-2-log.md): decisions and acceptance results.
+- [Specification](Docs/Specs.md): product direction and implementation contract.

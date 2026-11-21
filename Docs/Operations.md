@@ -45,6 +45,8 @@ See [Collaboration](Collaboration.md) for channel retention, sharing/export poli
 
 See [Integrations](Integrations.md) for Stage 3 execution/credential policy, optional executable prerequisites, and Git worktree repair after relocating a backup.
 
+See [Audio Comms](Audio-evaluation.md) for HTTPS/microphone requirements, optional protected ICE/TURN configuration and voice-room limits.
+
 ## Full-instance backup and restore
 
 Stop the server, close external content editors and select fresh destinations outside the source. The standard-library helper (Python 3.10+) takes the instance lock, checks SQLite integrity, verifies file checksums and publishes the completed copy into the new directory. Backups contain accounts, session tokens, configuration, private Git history and secrets. Restrict access accordingly. Preserve external service environment files and reverse-proxy keys separately.

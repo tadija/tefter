@@ -44,3 +44,4 @@ jobs:
           export TEFTER_TEST_CHROME="$(node --input-type=module -e 'import {chromium} from "playwright-core"; console.log(chromium.executablePath())')"
           TEFTER_TEST_BINARY=.build/release/tefter npm run test:browser
           TEFTER_TEST_BINARY=.build/release/tefter node tests/stage3.mjs
+          TEFTER_TEST_BINARY=.build/release/tefter node tests/audio.mjs

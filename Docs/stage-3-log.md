@@ -72,3 +72,16 @@ Implementation commits:
 - Independent Chrome processes exchanged actual audio RTP in both directions with nonzero received audio energy. Browser checks passed join/leave, actual microphone track muting, unmute, rejoin, membership eviction, connection cleanup, stopped capture tracks and signaling-loss shutdown. The stricter test explicitly requires a live connected peer and nonempty media statistics, avoiding vacuous assertions before negotiation. Synthetic microphones supply test input; media transport itself is real WebRTC.
 - No TURN server was provisioned and no new mandatory service was introduced. Direct connectivity is verified; operators requiring NAT/firewall relaying can supply ICE servers privately. A live external TURN deployment/relay-only path remains unverified and is documented as a deployment validation limit, not represented as a passing network test.
 - Release-browser validation exposed a departure/revocation race: SDP/ICE already in flight to a removed participant could disconnect the still-authorized sender. The server now drops stale-target signals without ejecting the sender, while still rejecting cross-room forwarding. A focused signaling regression and the two-browser revocation scenario both pass after the fix.
+
+### Audio follow-up final validation
+
+- `swift build` and `swift build -c release`: passed after the departure-race fix. The pre-existing Homebrew Argon2 deployment-target linker warning remains.
+- `npm --prefix Web run check`: zero errors/warnings; `npm --prefix Web run build`: passed.
+- `python3 -m unittest discover -s Tests -p audio.py`: passed, including stale-target preservation and cross-room denial.
+- `node Web/tests/audio.mjs`: passed after the fix.
+- `TEFTER_TEST_BINARY=.build/release/tefter node Web/tests/audio.mjs`: passed after the fix. Independent browser endpoints received 1152/1160 audio bytes with nonzero audio energy in the final run; controls, rejoin, revocation, capture cleanup and signaling-loss shutdown passed.
+- The focused Stage 3 release browser regression also passed during this follow-up. No Stage 1/2 suite or additional real-model harness test was run.
+- README now describes the current product without stage/report references. Historical reports remain in Docs and are linked from Development. Audio deployment documentation records optional ICE/TURN setup and the unverified external-relay/hardware/browser limits.
+- Implementation commits: `97327f3` (audio rooms and real-media/security tests), `be2b248` (departure/revocation race fix and regression). Final product documentation follows.
+
+Audio's original deferral is superseded by the working bounded implementation. Ready for maintainer testing on real microphones and the intended deployment network; no external TURN or production host was provisioned or claimed verified.

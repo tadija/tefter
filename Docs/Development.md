@@ -33,3 +33,15 @@ node Web/tests/stage3.mjs
 ```
 
 The real harness test uses `TEFTER_TEST_CODEX` (defaults to `codex` on PATH) and `TEFTER_TEST_CODEX_HOME` (defaults to `~/.codex`). It makes actual model calls using that explicitly authorized credential home; choose a dedicated test account/home where practical. Missing executable/credential directories skip this test, which is **not** evidence of adapter acceptance. Fixtures only test boundaries and protocol errors; the real Codex test is required for the harness gate. Browser validation here covers only Stage 3, using an isolated installation. This focused command does not execute earlier-stage test methods.
+
+## Audio validation
+
+The focused audio checks do not execute earlier-stage suites:
+
+```sh
+python3 -m unittest discover -s Tests -p audio.py
+node Web/tests/audio.mjs
+TEFTER_TEST_BINARY=.build/release/tefter node Web/tests/audio.mjs
+```
+
+The browser test uses synthetic microphones in two independent Chrome processes and requires actual received RTP bytes and nonzero audio energy. It covers room controls, capture cleanup, revocation and signaling-loss shutdown. It does not provision an external TURN server or validate a relay-only network path. Historical implementation reports remain in [Stage 1](stage-1-log.md), [Stage 2](stage-2-log.md) and [Stage 3](stage-3-log.md); the Stage 3 audio follow-up supersedes its original deferred-audio status.

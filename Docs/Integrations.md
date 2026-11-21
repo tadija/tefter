@@ -1,6 +1,6 @@
 # Repos, sessions and trusted plugins
 
-Stage 3 adds Repos and structured agent sessions to the space navigation. Audio is deferred by the [approved exception](Audio-evaluation.md); there are no working audio controls. Video remains future-only.
+Stage 3 adds Repos and structured agent sessions to the space navigation. Channel audio is implemented using native browser WebRTC; see [Audio Comms](Audio-evaluation.md) for use and network prerequisites. Video remains future-only.
 
 ## Administration and API use
 
@@ -79,4 +79,4 @@ git -C /restored/tefter/repositories/SPACE/REPO/checkout worktree repair \
   /restored/tefter/repositories/SPACE/REPO/session-SESSION
 ```
 
-Repeat for every worktree (or pass several worktree paths to one repair command). Verify with `git worktree list` and `git status` in each restored worktree. External executable paths, plugin arguments and credential-home pointers may need administrator reconfiguration after moving hosts. Do not expose installation, runtime, secret, plugin or repository directories as web assets. Both new private roots are rejected by the server's asset-path check. The same single Swift executable, external compiled assets and TLS reverse proxy remain sufficient; Codex and plugins are optional integrations. Audio adds no service because its deferral is approved.
+Repeat for every worktree (or pass several worktree paths to one repair command). Verify with `git worktree list` and `git status` in each restored worktree. External executable paths, plugin arguments and credential-home pointers may need administrator reconfiguration after moving hosts. Do not expose installation, runtime, secret, plugin or repository directories as web assets. Both new private roots are rejected by the server's asset-path check. The same single Swift executable, external compiled assets and TLS reverse proxy remain sufficient; Codex and plugins are optional integrations. Audio uses browser WebRTC and the existing signaling server; external ICE/TURN services are optional deployment configuration.
