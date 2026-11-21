@@ -95,6 +95,8 @@ enum Tefter {
     registerMemberships(router, identity)
     registerDocuments(router, identity)
     registerCollaboration(router, identity)
+    registerComms(router, identity)
+    try await identity.purgeComms()
     router.get("/api/v1/health") { _, _ in Health(status: "ok") }
     router.get("/api/v1/ready") { _, _ in Health(status: "ready") }
     router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))

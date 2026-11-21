@@ -32,6 +32,7 @@ final class Directory {
   static func components(_ path: String, internalPath: Bool = false) throws -> [String] {
     let parts = path.components(separatedBy: "/")
     guard path.utf8.count <= 4096, parts.count <= 64,
+      (internalPath || parts.first?.lowercased() != "comms"),
       parts.allSatisfy({
         !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("\\") && $0.utf8.count <= 255
           && !$0.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
@@ -119,6 +120,12 @@ final class Directory {
     } else {
       guard tefter_rename_exclusive(fd, tmp, fd, name) == 0 else { throw Self.failure() }
     }
+    try sync()
+  }
+
+  func removeFile(_ name: String) throws {
+    _ = try openRegular(name)
+    guard unlinkat(fd, name, 0) == 0 else { throw Self.failure() }
     try sync()
   }
 

@@ -81,6 +81,7 @@ extension Identity {
   func checkpointLoop() async {
     while !Task.isCancelled {
       do {
+        try purgeComms()
         for row in try db.rows("SELECT id FROM spaces") {
           guard !Task.isCancelled else { return }
           if let space = row["id"] {

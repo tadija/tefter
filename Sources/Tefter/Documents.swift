@@ -162,7 +162,7 @@ extension Identity {
     var tree = Tree(directories: [], documents: [])
     func visit(_ dir: Directory, prefix: String) throws {
       for name in try dir.entries()
-      where ![".tefter", ".git"].contains(name.lowercased()) && !name.hasPrefix(".tefter-tmp-") {
+      where ![".tefter", ".git"].contains(name.lowercased()) && !(prefix.isEmpty && name.lowercased() == "comms") && !name.hasPrefix(".tefter-tmp-") {
         let path = prefix + name
         _ = try Directory.components(path)
         guard let info = try dir.info(name) else { continue }

@@ -13,7 +13,7 @@ struct InstallationConfig: Decodable {
     if try config.info("server.json") != nil {
       let file = try JSONDecoder().decode(Self.self, from: config.read("server.json"))
       let keys: Set<String> = [
-        "TEFTER_HOST", "TEFTER_PORT", "TEFTER_WEB", "TEFTER_PUBLIC_URL",
+        "TEFTER_COMMS_RETENTION_DAYS", "TEFTER_HOST", "TEFTER_PORT", "TEFTER_WEB", "TEFTER_PUBLIC_URL",
         "TEFTER_SMTP_URL", "TEFTER_SMTP_FROM", "TEFTER_SMTP_USER", "TEFTER_SMTP_CA_FILE",
       ]
       guard file.version == 1, Set(file.settings.keys).isSubset(of: keys) else {

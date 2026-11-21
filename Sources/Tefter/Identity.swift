@@ -38,7 +38,7 @@ actor Identity {
     self.db = try Database(path: home.appendingPathComponent("runtime/tefter.sqlite").path)
     self.dummyHash = try Self.hash(Self.token())
     let schema = try db.rows("PRAGMA user_version").first?["user_version"]
-    guard schema == "0" || schema == "1" else {
+    guard schema == "0" || schema == "1" || schema == "2" else {
       throw HTTPError(.conflict, message: "Unsupported operational schema version.")
     }
     for sql in [
@@ -52,7 +52,10 @@ actor Identity {
       "CREATE TABLE IF NOT EXISTS recovery(user TEXT PRIMARY KEY REFERENCES users,digest TEXT UNIQUE NOT NULL,expires INTEGER NOT NULL)",
       "CREATE TABLE IF NOT EXISTS audit(time INTEGER NOT NULL DEFAULT (unixepoch()),actor TEXT NOT NULL,event TEXT NOT NULL,target TEXT NOT NULL)",
     ] { try db.execute(sql) }
-    try db.execute("PRAGMA user_version=1")
+    try db.execute("CREATE TABLE IF NOT EXISTS agents(id TEXT PRIMARY KEY,name TEXT NOT NULL,digest TEXT UNIQUE NOT NULL)")
+    try db.execute("CREATE TABLE IF NOT EXISTS agent_grants(space TEXT REFERENCES spaces,id TEXT REFERENCES agents,PRIMARY KEY(space,id))")
+    try db.execute("CREATE TABLE IF NOT EXISTS channel_cursors(space TEXT REFERENCES spaces,channel TEXT,sequence INTEGER NOT NULL,PRIMARY KEY(space,channel))")
+    try db.execute("PRAGMA user_version=2")
   }
 
   static func token() -> String {
