@@ -27,11 +27,13 @@ struct Space: ResponseCodable {
 actor Identity {
   var indexedSpaces = Set<String>()
   let previews = PreviewWorker()
+  let settings: [String: String]
   let db: Database
   let home: URL
   private let dummyHash: String
 
-  init(home: URL) throws {
+  init(home: URL, settings: [String: String]) throws {
+    self.settings = settings
     self.home = home
     self.db = try Database(path: home.appendingPathComponent("runtime/tefter.sqlite").path)
     self.dummyHash = try Self.hash(Self.token())

@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import subprocess
+import socket
 import unittest
 import uuid
 
@@ -23,9 +24,16 @@ class Boundaries(Workspace):
         self.assertEqual(outside.read_text(),"private")
         entity = str(uuid.uuid4())
         path = "research/local.md"
-        text = f"---\ntype: url\nid: {entity}\ntitle: Local\nurl: http://127.0.0.1:{self.port}/api/v1/health\n---\nNotes"
+        probe = socket.socket()
+        self.addCleanup(probe.close)
+        probe.bind(("127.0.0.1",0))
+        probe.listen()
+        probe.settimeout(.2)
+        text = f"---\ntype: url\nid: {entity}\ntitle: Local\nurl: http://127.0.0.1:{probe.getsockname()[1]}/\n---\nNotes"
         self.call("POST",base+"write",{"path":path,"text":text},a,204)
         self.call("POST",base+"preview?path="+path,{},a,422)
+        with self.assertRaises(TimeoutError):
+            probe.accept()
         self.stop()
         self.start()
         repo = Path(self.home.name)/"runtime/history"/(space+".git")

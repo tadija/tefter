@@ -1,5 +1,7 @@
 import http.client
 import io
+import json
+import sqlite3
 import subprocess
 import tempfile
 import unittest
@@ -30,11 +32,20 @@ class Collaboration(Workspace):
             self.assertTrue(any(n.startswith(".tefter/comments/") for n in archive.namelist()))
             self.assertFalse(any("sqlite" in n for n in archive.namelist()))
         conn.close()
+        config = Path(self.home.name)/"config/server.json"
+        config.write_text(json.dumps({"version":1,"settings":{"TEFTER_HOST":"127.0.0.1"}}))
+        secret = Path(self.home.name)/"secrets/smtp-password"
+        secret.write_text("synthetic restore fixture")
+        secret.chmod(0o600)
         self.stop()
         with tempfile.TemporaryDirectory() as tmp:
             backup, restored = [Path(tmp)/name for name in ["backup","restored"]]
             subprocess.run(["python3","Scripts/instance.py","backup",self.home.name,backup],check=True)
             subprocess.run(["python3","Scripts/instance.py","restore",backup,restored],check=True)
+            self.assertEqual((restored/"config/server.json").read_bytes(), config.read_bytes())
+            self.assertEqual((restored/"secrets/smtp-password").read_bytes(), secret.read_bytes())
+            with sqlite3.connect(restored/"runtime/tefter.sqlite") as db:
+                db.execute("DROP TABLE search")
             self.env["TEFTER_HOME"] = str(restored)
             self.start()
             restored_session = self.login("admin@example.test")
@@ -42,6 +53,10 @@ class Collaboration(Workspace):
             self.assertEqual([c["body"] for c in thread["comments"]], ["marigold","reply"])
             self.assertEqual(len(self.call("POST", base+"search",{"query":"marigold"},restored_session)[1]["hits"]),1)
             self.stop()
+            (backup/"instance"/"secrets/smtp-password").write_text("changed")
+            failed = subprocess.run(["python3","Scripts/instance.py","restore",backup,Path(tmp)/"rejected"],capture_output=True)
+            self.assertNotEqual(failed.returncode,0)
+            self.assertFalse((Path(tmp)/"rejected").exists())
 
 
 if __name__ == "__main__":

@@ -94,7 +94,7 @@ static size_t read_mail(char *buffer, size_t size, size_t count, void *context) 
     return amount;
 }
 
-int tefter_send_mail(const char *server, const char *user, const char *password,
+int tefter_send_mail(const char *server, const char *ca_file, const char *user, const char *password,
                      const char *sender, const char *recipient, const char *message) {
     CURL *curl = curl_easy_init();
     if (!curl) return 0;
@@ -111,6 +111,7 @@ int tefter_send_mail(const char *server, const char *user, const char *password,
     curl_easy_setopt(curl,CURLOPT_PROXY,"");
     curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);
     curl_easy_setopt(curl,CURLOPT_TIMEOUT,10L);
+    if (*ca_file) curl_easy_setopt(curl,CURLOPT_CAINFO,ca_file);
     if (*user) {
         curl_easy_setopt(curl,CURLOPT_USERNAME,user);
         curl_easy_setopt(curl,CURLOPT_PASSWORD,password);

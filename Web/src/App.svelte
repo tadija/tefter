@@ -6,6 +6,7 @@
   type Space = { id: string; name: string; role: string };
   let spaces = $state<Space[]>([]);
   let selected = $state("");
+  let initialPath = $state("");
   let user = $state(""),
     recovery = $state("");
   let email = $state("");
@@ -124,13 +125,20 @@
     }}
   />
   <label>
-    Space <select bind:value={selected}>
+    Space <select bind:value={selected} onchange={() => (initialPath = "")}>
       {#each spaces as space}<option value={space.id}>
           {space.name}
         </option>{/each}
     </select>
   </label>
-  {#if selected}{#key selected}<Workspace space={selected} />{/key}{/if}
+  {#if selected}{#key selected}<Workspace
+        space={selected}
+        {initialPath}
+        navigate={(id, path) => {
+          initialPath = path;
+          selected = id;
+        }}
+      />{/key}{/if}
 {/if}
 
 <style>

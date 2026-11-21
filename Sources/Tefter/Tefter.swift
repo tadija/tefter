@@ -13,7 +13,26 @@ struct Health: ResponseCodable {
 
 @main
 enum Tefter {
-  static func main() async throws {
+  static func main() async {
+    do { try await run() } catch {
+      let message: String
+      switch error {
+      case ConfigurationError.invalidCommand:
+        message = "Usage: tefter [bootstrap EMAIL | reset-password EMAIL]"
+      case ConfigurationError.instanceInUse:
+        message = "The instance is locked. Stop the server before running an offline command."
+      case ConfigurationError.invalidAssetsOrPort:
+        message = "Check TEFTER_PORT and the compiled TEFTER_WEB directory."
+      case let error as HTTPError: message = error.body ?? error.status.reasonPhrase
+      default:
+        message = "Startup or operation failed (" + String(describing: type(of: error)) + ")."
+      }
+      FileHandle.standardError.write(Data(("tefter: " + message + "\n").utf8))
+      exit(EXIT_FAILURE)
+    }
+  }
+
+  static func run() async throws {
     _ = umask(0o077)
     let env = ProcessInfo.processInfo.environment
     let files = FileManager.default
@@ -33,7 +52,8 @@ enum Tefter {
       throw ConfigurationError.instanceInUse
     }
     defer { close(lock) }
-    let identity = try Identity(home: home)
+    let settings = try InstallationConfig.load(home: home, environment: env)
+    let identity = try Identity(home: home, settings: settings)
     let args = Array(CommandLine.arguments.dropFirst())
     if !args.isEmpty {
       guard args.count == 2, ["bootstrap", "reset-password"].contains(args[0]) else {
@@ -54,9 +74,9 @@ enum Tefter {
       }
       return
     }
-    let assets = env["TEFTER_WEB"] ?? "Web/dist"
+    let assets = settings["TEFTER_WEB"] ?? "Web/dist"
     guard files.isReadableFile(atPath: assets + "/index.html"),
-      let port = Int(env["TEFTER_PORT"] ?? "8080"), (1...65535).contains(port)
+      let port = Int(settings["TEFTER_PORT"] ?? "8080"), (1...65535).contains(port)
     else {
       throw ConfigurationError.invalidAssetsOrPort
     }
@@ -73,10 +93,15 @@ enum Tefter {
     router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))
     let app = Application(
       router: router,
-      configuration: .init(address: .hostname(env["TEFTER_HOST"] ?? "127.0.0.1", port: port)))
+      configuration: .init(address: .hostname(settings["TEFTER_HOST"] ?? "127.0.0.1", port: port)))
     let history = Task { await identity.checkpointLoop() }
-    defer { history.cancel() }
-    try await app.runService()
+    do { try await app.runService() } catch {
+      history.cancel()
+      await history.value
+      throw error
+    }
+    history.cancel()
+    await history.value
   }
 
   enum ConfigurationError: Error { case invalidAssetsOrPort, invalidCommand, instanceInUse }

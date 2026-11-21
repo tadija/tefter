@@ -31,7 +31,7 @@ final class Database {
     defer { sqlite3_finalize(statement) }
     for (offset, argument) in arguments.enumerated() {
       result = sqlite3_bind_text(
-        statement, Int32(offset + 1), argument, -1,
+        statement, Int32(offset + 1), argument, Int32(argument.utf8.count),
         unsafeBitCast(-1, to: sqlite3_destructor_type.self))
       guard result == SQLITE_OK else { throw Failure.sqlite(result) }
     }
@@ -43,7 +43,9 @@ final class Database {
       var record = [String: String]()
       for index in 0..<sqlite3_column_count(statement) {
         if let value = sqlite3_column_text(statement, index) {
-          record[String(cString: sqlite3_column_name(statement, index))] = String(cString: value)
+          record[String(cString: sqlite3_column_name(statement, index))] = String(
+            decoding: UnsafeBufferPointer(
+              start: value, count: Int(sqlite3_column_bytes(statement, index))), as: UTF8.self)
         }
       }
       records.append(record)

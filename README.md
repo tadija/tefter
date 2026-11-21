@@ -1,42 +1,77 @@
 # Tefter
 
-Tefter is a self-hosted, filesystem-first workspace under development. The approved product contract is in [Docs](Docs/tefter-v1-specs.md).
+Tefter is a self-hosted workspace for Markdown documents, tasks, sprints, releases and saved URLs. Each space is an ordinary directory. SQLite stores accounts, memberships and sessions, and provides a rebuildable FTS5 index. See the [approved v1 specification](Docs/tefter-v1-specs.md) and [Stage 1 decision log](Docs/stage-1-log.md).
 
 ## Build and run
 
-From the project root, build the browser assets and start the Swift executable.
+Use a Swift toolchain compatible with Package.resolved (tested with Swift 6.4), a recent Node LTS with npm for the asset build, Git, pkg-config, SQLite with FTS5, libargon2 and libcurl 7.85 or newer. On Debian 12 or later, install `git pkg-config libargon2-dev libsqlite3-dev libcurl4-openssl-dev` alongside the Swift toolchain. On macOS install Xcode command-line tools and `brew install argon2 pkg-config`.
+
+From a fresh checkout, build the compiled browser assets and executable, then create the first account. The CLI prompts for a password or reads one line from standard input.
 
 ```sh
 npm --prefix Web ci
 npm --prefix Web run build
-swift run tefter
+swift build -c release
+.build/release/tefter bootstrap admin@example.org
+.build/release/tefter
 ```
 
-Open http://127.0.0.1:8080/. The compiled assets in `Web/dist` are served by Hummingbird. Node is a build-time dependency. For distribution, run `swift build -c release` and deploy the executable alongside the compiled asset directory.
+Open http://127.0.0.1:8080/ and sign in. In **Account and administration**, create another account, create an organization, grant organization membership, create an organization space and grant space membership. The space switcher lists accessible personal and shared spaces. Members can edit content. Owners and space admins manage space grants. Installation admins manage organizations and accounts.
+
+For deployment, install the executable and external `Web/dist` assets, keep the linked system libraries available and set the service working directory or absolute asset path. Run the process as a dedicated OS account. Put a TLS reverse proxy in front of the loopback listener. Secure HttpOnly session cookies expire after 12 hours. Password changes and recovery revoke all sessions for the account. Stop the server and run `tefter reset-password EMAIL` for offline recovery.
+
+## Configuration
 
 | Environment | Default | Purpose |
 | --- | --- | --- |
-| TEFTER_HOME | $XDG_DATA_HOME/tefter or ~/.local/share/tefter | Private installation data |
+| TEFTER_HOME | $XDG_DATA_HOME/tefter or ~/.local/share/tefter | Private installation root |
 | TEFTER_WEB | Web/dist | Compiled public assets |
 | TEFTER_HOST | 127.0.0.1 | Listen address |
 | TEFTER_PORT | 8080 | Listen port |
+| TEFTER_PUBLIC_URL | unset | Public HTTPS origin for optional mail links |
+| TEFTER_SMTP_URL, TEFTER_SMTP_FROM | unset | SMTP endpoint and sender. SMTP requires STARTTLS or implicit TLS |
+| TEFTER_SMTP_USER, TEFTER_SMTP_PASSWORD | unset | Optional SMTP credentials |
+| TEFTER_SMTP_CA_FILE | system trust store | Optional private CA certificate bundle for SMTP |
 
-Use `/api/v1/health` for liveness and `/api/v1/ready` for startup readiness.
+The service environment overrides optional settings in `$TEFTER_HOME/config/server.json`. Place an SMTP password in `secrets/smtp-password` with mode 0600 or use a protected service environment. A minimal config file is shown below.
 
-Install SQLite and libargon2 development headers and pkg-config before building (on macOS, `brew install argon2 pkg-config`; on Debian, `apt install libargon2-dev libsqlite3-dev pkg-config`). Use `swift run tefter bootstrap EMAIL` for the first administrator, or `swift run tefter reset-password EMAIL` for offline recovery. Both read the password from the terminal or standard input. Recovery revokes existing sessions. Set the same TEFTER_HOME for CLI and server. Terminate TLS at a reverse proxy pointing to the loopback listener. Session cookies require a secure browser context.
+```json
+{"version":1,"settings":{"TEFTER_HOST":"127.0.0.1","TEFTER_PORT":"8080"}}
+```
 
-## Backup and restore
+Use `/api/v1/health` for liveness and `/api/v1/ready` for startup readiness. SIGTERM initiates graceful shutdown. Local login, account creation and offline recovery work independently of SMTP. An administrator can email an existing account a single-use password setup link valid for 30 minutes.
 
-Stop the server, close external content editors and run the following commands with Python 3.10 or later. Use fresh destinations outside the source tree. The backup includes content, accounts, sessions, configuration, private history and secrets. Store it with the same access restrictions as the installation. The helper locks the stopped instance, checks SQLite integrity, verifies file checksums and publishes the completed copy into the new destination. Securely preserve deployment-specific environment settings and reverse-proxy TLS keys separately.
+## Storage and operation
+
+- Add ordinary Markdown files anywhere under `content/spaces/SPACE-ID`. Use **Rescan** after external edits to reconcile identity and rebuild search. Front matter determines typed views. A plain document receives a portable sidecar ID when needed for comments.
+- Saving files and moving or deleting them requires the current revision. A stale save returns HTTP 409. Reload the file and reconcile edits. Interrupted relocations have a recovery journal. Resolve ambiguous external moves or duplicate IDs in the files before rescanning.
+- The API paginates tree, membership and directory listings with `offset` and `limit`. Search returns at most 100 matches per offset. A file read or write is bounded at 16 MiB and generated ZIP archives at 128 MiB. A full-instance backup copies files independently of the ZIP limit.
+- Link previews allow HTTP and HTTPS. The transport checks the actual IP before each socket opens, disables proxies, follows up to three redirects, reads at most 512 KiB per transfer and times out after five seconds. The file and notes remain available if preview generation fails.
+- Private Git checkpoints run on startup and every 30 seconds under `runtime/history` using `/usr/bin/git`. The server stages validated durable files in an isolated work tree. File writes are durable before the next checkpoint.
+- Operational schema version 1 is the first release. The executable rejects unknown schema versions. Before future upgrades, stop the server and take a verified backup.
+
+## Full-instance backup and restore
+
+Stop the server, close external content editors and select fresh destinations outside the source. The standard-library helper (Python 3.10+) takes the instance lock, checks SQLite integrity, verifies file checksums and publishes the completed copy into the new directory. Backups contain accounts, session tokens, configuration, private Git history and secrets. Restrict access accordingly. Preserve external service environment files and reverse-proxy keys separately.
 
 ```sh
 python3 Scripts/instance.py backup "$TEFTER_HOME" /private/backups/tefter-copy
 python3 Scripts/instance.py restore /private/backups/tefter-copy /private/tefter-restored
-TEFTER_HOME=/private/tefter-restored swift run tefter
+TEFTER_HOME=/private/tefter-restored .build/release/tefter
 ```
 
-Sign in, open a known document and search for a known comment. `python3 Tests/collaboration.py` exercises this round trip with a temporary installation.
+Sign in to the restored instance, open a known document, check its comments and search for a known term. The integration suite performs this round trip and checks that a changed backup fails verification.
 
-URL previews use libcurl 7.85+ and SwiftSoup. Linux builds need libcurl development headers (Debian: `libcurl4-openssl-dev`). The transport checks the concrete peer address before opening every socket, disables proxies, bounds transfer size and elapsed time, and limits redirects. Unavailable previews leave the saved URL and notes readable. Git must be available at /usr/bin/git. Private checkpoints are rebuilt from eligible durable files every 30 seconds and on startup under runtime/history.
+## Stage 1 validation
 
-Optional administrator-initiated password setup/recovery mail uses `TEFTER_SMTP_URL` (smtp with STARTTLS or smtps), `TEFTER_SMTP_FROM`, `TEFTER_PUBLIC_URL` (HTTPS), and optional `TEFTER_SMTP_USER` and `TEFTER_SMTP_PASSWORD`. Keep credentials in a protected service environment file. Links expire after 30 minutes and are single-use. Offline bootstrap and recovery work with the server stopped.
+```sh
+npm --prefix Web ci
+npm --prefix Web run check
+npm --prefix Web run build
+swift build
+swift test
+python3 -m unittest discover -s Tests -p '*.py'
+npm --prefix Web run test:browser
+```
+
+The browser smoke test runs headless Chrome through Playwright Core. Set `TEFTER_TEST_CHROME` to a local Chromium executable if needed. The HTTP and browser tests start isolated installations and exercise the real server, filesystem, SQLite and Git. Optional mail is tested with a loopback TLS SMTP fixture and disposable certificate.

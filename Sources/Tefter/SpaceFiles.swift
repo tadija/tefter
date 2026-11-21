@@ -35,7 +35,8 @@ final class Directory {
       parts.allSatisfy({
         !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("\\") && $0.utf8.count <= 255
           && !$0.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
-          && $0.lowercased() != ".git" && (internalPath || $0.lowercased() != ".tefter")
+          && !$0.hasPrefix(".tefter-tmp-") && $0.lowercased() != ".git"
+          && (internalPath || $0.lowercased() != ".tefter")
       })
     else { throw HTTPError(.badRequest, message: "Invalid relative path.") }
     return parts
@@ -99,6 +100,7 @@ final class Directory {
 
   func write(_ name: String, data: Data, replacing: Bool) throws {
     try Self.singleName(name)
+    guard data.count <= 16 * 1024 * 1024 else { throw HTTPError(.contentTooLarge) }
     let tmp = ".tefter-tmp-" + UUID().uuidString
     let file = openat(fd, tmp, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o600)
     guard file >= 0 else { throw Self.failure() }

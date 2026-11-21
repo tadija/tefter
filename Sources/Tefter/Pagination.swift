@@ -24,7 +24,13 @@ struct PrivateResponseHeaders: RouterMiddleware {
     _ request: Request, context: BasicRequestContext,
     next: (Request, BasicRequestContext) async throws -> Response
   ) async throws -> Response {
-    var response = try await next(request, context)
+    var response: Response
+    do { response = try await next(request, context) } catch var error as HTTPError
+      where request.uri.path.hasPrefix("/api/")
+    {
+      if error.body == nil { error.body = error.status.reasonPhrase }
+      response = try error.response(from: request, context: context)
+    }
     if request.uri.path.hasPrefix("/api/") { response.headers[.cacheControl] = "private, no-store" }
     response.headers[.init("Referrer-Policy")!] = "no-referrer"
     return response

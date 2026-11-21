@@ -15,6 +15,14 @@ struct ThreadFile: ResponseCodable {
   var version = 1
   var revision = "initial"
   var comments: [Comment] = []
+  var next: Int?
+
+  func page(_ window: PageWindow) -> Self {
+    var copy = self
+    copy.comments = window.slice(comments)
+    copy.next = window.next(count: comments.count)
+    return copy
+  }
 }
 struct CommentChange: Decodable {
   let path: String
@@ -52,7 +60,7 @@ extension Identity {
 
   func comments(_ space: String, path: String, request: Request) throws -> ThreadFile {
     let root = try root(space, user: session(request).user)
-    return try thread(document(path, root: root).document.id, root: root)
+    return try thread(document(path, root: root).document.id, root: root).page(PageWindow(request))
   }
 
   func comment(_ space: String, change: CommentChange, request: Request) throws -> ThreadFile {
@@ -90,7 +98,7 @@ extension Identity {
     try save(thread, to: metadata(root).directory("comments", create: true), name: id + ".json")
     indexedSpaces.remove(space)
     try audit(user, "comment", space + "/" + id)
-    return thread
+    return try thread.page(PageWindow(request))
   }
 
   func rebuild(_ space: String, user: String) throws {

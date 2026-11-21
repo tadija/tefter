@@ -1,11 +1,18 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { marked } from "marked";
-  import DOMPurify from "dompurify";
+  import { preview } from "./markdown";
   import Links from "./Links.svelte";
   import Comments from "./Comments.svelte";
   import { api, listing } from "./api";
-  let { space }: { space: string } = $props();
+  let {
+    space,
+    initialPath,
+    navigate,
+  }: {
+    space: string;
+    initialPath: string;
+    navigate: (space: string, path: string) => void;
+  } = $props();
   type Doc = {
     path: string;
     revision: string;
@@ -13,6 +20,7 @@
     type: string;
     title: string;
     status?: string;
+    assignee?: string;
     sprint?: string;
     release?: string;
     url?: string;
@@ -40,7 +48,7 @@
   let mode = $state("Files"),
     read = $state(false),
     filter = $state("");
-  let people = $state<{ id: string; name: string }[]>([]);
+  let people = $state<{ id: string; name: string; profile: string }[]>([]);
   type Settings = {
     version: number;
     revision: string;
@@ -85,6 +93,27 @@
     allSpaces = $state(false),
     searched = $state(false);
   let hits = $state<{ space: string; path: string; title: string }[]>([]);
+  let moreResults = $state(false);
+  let searchFilter: Record<string, unknown> = {};
+  async function search(more: boolean) {
+    if (!more)
+      searchFilter = {
+        query,
+        allSpaces,
+        type: typeFilter,
+        directory: scope,
+        author: authorFilter,
+        since,
+        until: until ? until + "T23:59:59Z" : "",
+      };
+    const page = await api<{ hits: typeof hits }>(base() + "search", "POST", {
+      ...searchFilter,
+      offset: more ? hits.length : 0,
+    });
+    hits = more ? [...hits, ...page.hits] : page.hits;
+    moreResults = page.hits.length === 100;
+    searched = true;
+  }
   const base = () => "spaces/" + space + "/";
   async function run(work: () => Promise<void>) {
     error = "";
@@ -114,6 +143,8 @@
       mode = settings.defaults[""] ?? "Files";
       user = (await api<{ user: string }>("session")).user;
       people = await listing(base() + "people", "people");
+      const initial = tree.documents.find((doc) => doc.path === initialPath);
+      if (initial) await open(initial);
     });
     loading = false;
   });
@@ -190,38 +221,6 @@
       await refresh();
       const doc = tree.documents.find((d) => d.path === path);
       if (doc) await open(doc);
-    });
-  }
-  function preview(text: string) {
-    return DOMPurify.sanitize(marked.parse(text, { async: false }), {
-      ALLOWED_TAGS: [
-        "p",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "ul",
-        "ol",
-        "li",
-        "em",
-        "strong",
-        "del",
-        "blockquote",
-        "pre",
-        "code",
-        "a",
-        "br",
-        "hr",
-        "table",
-        "thead",
-        "tbody",
-        "td",
-        "th",
-      ],
-      ALLOWED_ATTR: ["href", "title"],
-      ALLOWED_URI_REGEXP: /^(?:https?:\/\/|mailto:|#)/i,
     });
   }
   let docs = $derived(
@@ -334,26 +333,13 @@
         {name}
       </button>{/each}
   </details>
-  <div class="workspace">
+  <div class="workspace" class:wide={mode === "Kanban" || mode === "URLs"}>
     <aside>
       {#if mode === "Search"}
         <form
           onsubmit={(e) => {
             e.preventDefault();
-            run(async () => {
-              hits = (
-                await api<{ hits: typeof hits }>(base() + "search", "POST", {
-                  query,
-                  allSpaces,
-                  type: typeFilter,
-                  directory: scope,
-                  author: authorFilter,
-                  since,
-                  until: until ? until + "T23:59:59Z" : "",
-                })
-              ).hits;
-              searched = true;
-            });
+            run(() => search(false));
           }}
         >
           <label>
@@ -383,10 +369,25 @@
           </label><button>Search</button>
         </form>
         {#each hits as hit}<p>
-            {hit.title} · {hit.path} · {hit.space}
+            <button
+              onclick={() => {
+                if (hit.space === space) {
+                  const doc = tree.documents.find((d) => d.path === hit.path);
+                  if (doc) open(doc);
+                } else navigate(hit.space, hit.path);
+              }}
+            >
+              {hit.title} · {hit.path} · {hit.space}
+            </button>
           </p>{:else}{#if searched}<p>No matches.</p>{/if}{/each}
+        {#if moreResults}<button onclick={() => run(() => search(true))}>
+            More results
+          </button>{/if}
       {:else if mode === "People"}<h2>People</h2>
-        {#each people as p}<p>{p.name}</p>{/each}
+        {#each people as p}<details>
+            <summary>{p.name}</summary>
+            <article>{@html preview(p.profile)}</article>
+          </details>{/each}
       {:else}
         <label>Filter <input bind:value={filter} /></label>
         {#if mode === "Files"}
@@ -423,12 +424,36 @@
             open={(path) => open(tree.documents.find((d) => d.path === path)!)}
           />
         {:else if mode === "Kanban"}
-          {#each ["todo", "in-progress", "done"] as column}<h3>{column}</h3>
-            {#each docs.filter((d) => d.type === "task" && d.status === column) as d}<button
-                onclick={() => open(d)}
-              >
-                {d.title}
-              </button>{/each}{/each}
+          <div class="board">
+            {#each ["todo", "in-progress", "done"] as column}<section>
+                <h3>{column}</h3>
+                {#each docs.filter((d) => d.type === "task" && d.status === column) as d}<div
+                    class="task"
+                  >
+                    <button onclick={() => open(d)}>{d.title}</button>
+                    <select
+                      aria-label={"Status for " + d.title}
+                      value={d.status}
+                      onchange={(e) => {
+                        const status = e.currentTarget.value;
+                        run(async () => {
+                          await api(base() + "task-status", "POST", {
+                            path: d.path,
+                            revision: d.revision,
+                            status,
+                          });
+                          await refresh();
+                          if (selected?.id === d.id) await open(d);
+                        });
+                      }}
+                    >
+                      {#each ["todo", "in-progress", "done"] as state}<option>
+                          {state}
+                        </option>{/each}
+                    </select>
+                  </div>{/each}
+              </section>{/each}
+          </div>
         {:else}
           {#each docs.filter( (d) => (mode === "Tasks" || mode === "Backlog" ? d.type === "task" && (mode !== "Backlog" || !d.sprint) : d.type === ({ Sprints: "sprint", Releases: "release", URLs: "url" } as Record<string, string>)[mode]) ) as d}
             <p>
@@ -453,6 +478,17 @@
         Rescan
       </button>
       {#if selected}<h2>{selected.title}</h2>
+        {#if selected.assignee}<p>
+            Assignee · {people.find((p) => p.id === selected?.assignee)?.name ??
+              "Unavailable"}
+          </p>{/if}
+        {#each [["Sprint", selected.sprint], ["Release", selected.release]] as [label, ref]}
+          {#if ref}{@const target = tree.documents.find((d) => d.id === ref)}
+            <p>
+              {label} · {#if target}<button onclick={() => open(target)}>
+                  {target.title}
+                </button>{:else}Unavailable ({ref}){/if}
+            </p>{/if}{/each}
         <button onclick={() => (read = !read)}>
           {read ? "Edit Markdown" : "Preview"}
         </button>{/if}
@@ -562,6 +598,7 @@
           </button>
         </details>{/if}
       {#if selected}{#key selected.path}<Comments
+            {people}
             base={base()}
             path={selected.path}
             {user}
@@ -570,6 +607,27 @@
   </div>{/if}
 
 <style>
+  .workspace.wide {
+    grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
+  }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+  .task {
+    border: 1px solid #b7c7bf;
+    padding: 0.4rem;
+  }
+  .task select,
+  .task button {
+    max-width: 100%;
+  }
+  @media (max-width: 700px) {
+    .workspace.wide {
+      grid-template-columns: 1fr;
+    }
+  }
   nav {
     display: flex;
     gap: 0.4rem;

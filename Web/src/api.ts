@@ -15,7 +15,15 @@ export async function api<T>(
     body: data === undefined ? undefined : JSON.stringify(data),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Request failed (${response.status})`);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(
+      (detail?.error?.message ?? detail?.message ?? "Request failed") +
+        " (" +
+        response.status +
+        ")",
+    );
+  }
   const value = response.status === 204 ? null : await response.json();
   if (value?.csrf) csrf = value.csrf;
   return value;

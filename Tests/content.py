@@ -25,11 +25,16 @@ class Content(Workspace):
         for kind, entity, path, fields in [
             ("release", release, "Research/version.md", ""),
             ("sprint", sprint, "Cycles/nov.md", f"release: {release}\n"),
-            ("task", task, "Engineering/work.md", f"status: todo\nsprint: {sprint}\nrelease: {release}\n"),
+            ("task", task, "Engineering/work.md", f"custom: [one, two]\nstatus: todo\nsprint: {sprint}\nrelease: {release}\n"),
             ("url", url, "Research/source.md", "url: https://example.org/\n")]:
             write(path, f"---\nid: {entity}\ntype: {kind}\ntitle: Example\n{fields}---\nNotes")
         task_doc = next(d for d in tree() if d.get("id") == task)
         self.assertEqual((task_doc["sprint"], task_doc["release"]), (sprint, release))
+        self.call("POST",base+"task-status",{"path":task_doc["path"],"revision":task_doc["revision"],"status":"done"},self.admin,204)
+        revised = self.call("GET",base+"file?path="+task_doc["path"],session=self.admin)[1]
+        self.assertEqual(revised["document"]["status"],"done")
+        self.assertIn("custom:",revised["text"])
+        self.assertTrue(revised["text"].endswith("Notes"))
         old = next(d for d in tree() if d["path"] == "Research/notes.md")
         write(old["path"], "updated", revision=old["revision"])
         self.call("POST", base + "write", dict(path=old["path"], text="stale", revision=old["revision"]), self.admin, 409)

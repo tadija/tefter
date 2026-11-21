@@ -35,7 +35,7 @@ extension Identity {
   func sendRecovery(_ target: String, request: Request) async throws {
     let actor = try session(request).user
     try requireAdmin(actor)
-    let env = ProcessInfo.processInfo.environment
+    let env = settings
     guard let smtp = env["TEFTER_SMTP_URL"], let sender = env["TEFTER_SMTP_FROM"],
       Self.emailValid(sender),
       let origin = env["TEFTER_PUBLIC_URL"], URL(string: origin)?.scheme == "https"
@@ -57,7 +57,8 @@ extension Identity {
       + origin + "/#recover=" + token + "\r\n"
     let ok = await Task.detached {
       tefter_send_mail(
-        smtp, env["TEFTER_SMTP_USER"] ?? "", env["TEFTER_SMTP_PASSWORD"] ?? "", sender, recipient,
+        smtp, env["TEFTER_SMTP_CA_FILE"] ?? "", env["TEFTER_SMTP_USER"] ?? "",
+        env["TEFTER_SMTP_PASSWORD"] ?? "", sender, recipient,
         message)
     }.value
     guard ok == 1 else {

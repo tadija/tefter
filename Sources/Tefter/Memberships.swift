@@ -9,8 +9,13 @@ struct OrgList: ResponseCodable {
   let organizations: [Named]
   var next: Int?
 }
+struct Person: ResponseCodable {
+  let id: String
+  let name: String
+  let profile: String
+}
 struct People: ResponseCodable {
-  let people: [Named]
+  let people: [Person]
   var next: Int?
 }
 private struct NameInput: Decodable { let name: String }
@@ -113,11 +118,18 @@ extension Identity {
   func people(_ id: String, user: String) throws -> People {
     _ = try access(id, user: user)
     try syncProfiles(id)
+    let dir = try metadata(root(id, user: user)).directory("people")
     return People(
       people: try db.rows(
         "SELECT users.id,email FROM users JOIN members ON members.user=users.id WHERE space=? ORDER BY email",
         [id]
-      ).map { Named(id: $0["id"]!, name: $0["email"]!) })
+      ).map { row in
+        let profile = String(decoding: try dir.read(row["id"]! + ".md"), as: UTF8.self)
+        let title = profile.split(separator: "\n").first.flatMap {
+          $0.hasPrefix("# ") ? String($0.dropFirst(2)) : nil
+        }
+        return Person(id: row["id"]!, name: title ?? row["email"]!, profile: profile)
+      })
   }
 }
 

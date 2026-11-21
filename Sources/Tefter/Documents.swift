@@ -288,6 +288,11 @@ func registerDocuments(_ router: Router<BasicRequestContext>, _ identity: Identi
       ctx.parameters.require("space"), path: req.uri.queryParameters.require("path"),
       kind: req.uri.queryParameters.require("kind"), request: req)
   }
+  group.post("task-status") { req, ctx -> HTTPResponse.Status in
+    let input = try await req.decode(as: StatusChange.self, context: ctx)
+    try await identity.setStatus(ctx.parameters.require("space"), change: input, request: req)
+    return .noContent
+  }
   group.post("preview") { req, ctx in
     try await identity.preview(
       ctx.parameters.require("space"), path: req.uri.queryParameters.require("path"), request: req)
