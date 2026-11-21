@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import Workspace from './Workspace.svelte'
   import { api } from './api'
   type Space = { id: string; name: string; role: string }
   let spaces = $state<Space[]>([])
@@ -45,6 +46,7 @@
   </form>
 {:else}
   <label>Space <select bind:value={selected}>{#each spaces as space}<option value={space.id}>{space.name}</option>{/each}</select></label>
+  {#if selected}{#key selected}<Workspace space={selected}/>{/key}{/if}
 {/if}
 
 <style>

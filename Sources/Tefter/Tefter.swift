@@ -45,6 +45,7 @@ enum Tefter {
         let router = Router()
         registerIdentity(router, identity)
         registerMemberships(router, identity)
+        registerDocuments(router, identity)
         router.get("/api/v1/health") { _, _ in Health(status: "ok") }
         router.get("/api/v1/ready") { _, _ in Health(status: "ready") }
         router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))

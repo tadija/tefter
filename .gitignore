@@ -3,3 +3,4 @@
 .swiftpm/
 Web/node_modules/
 Web/dist/
+__pycache__/
