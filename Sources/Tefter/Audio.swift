@@ -110,9 +110,13 @@ extension Identity {
       guard peer.joined, let muted = action.muted else { throw HTTPError(.badRequest) }
       peer.participant.muted = muted
     case "offer", "answer", "ice":
-      guard peer.joined, let target = action.target, var recipient = audioPeers[target],
-        recipient.joined, target != id, recipient.space == peer.space, recipient.channel == peer.channel,
-        let payload = action.payload, payload.utf8.count <= 24_576,
+      guard peer.joined, let target = action.target, UUID(uuidString: target) != nil,
+        target != id, let payload = action.payload, payload.utf8.count <= 24_576
+      else { throw HTTPError(.badRequest) }
+      // ICE/SDP can already be in flight when a recipient leaves or is revoked.
+      // Drop that stale signal without ejecting the still-authorized sender.
+      guard var recipient = audioPeers[target] else { audioPeers[id] = peer; return }
+      guard recipient.joined, recipient.space == peer.space, recipient.channel == peer.channel,
         recipient.queue.count < 64 else { throw HTTPError(.badRequest) }
       recipient.queue.append(AudioEvent(type: action.type, from: id, payload: payload))
       audioPeers[target] = recipient

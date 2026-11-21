@@ -2,6 +2,7 @@
 from identity import Workspace
 from live import SocketClient
 import json
+import uuid
 import unittest
 from pathlib import Path
 
@@ -49,6 +50,14 @@ class AudioSecurity(Workspace):
         self.assertEqual(len(left['participants']),1)
         self.assertEqual(len(right['participants']),1)
         self.assertNotEqual(left['id'],right['id'])
+        # A peer leaving during negotiation must not eject a valid sender.
+        one.send({'type':'offer','csrf':a['X-CSRF-Token'],'target':str(uuid.uuid4()),'payload':'stale-offer'})
+        one.send({'type':'mute','csrf':a['X-CSRF-Token'],'muted':True})
+        for _ in range(20):
+            event=one.receive()
+            self.assertIsNotNone(event)
+            if event['participants'] and event['participants'][0]['muted']: break
+        else: self.fail('Sender was lost after a stale signal')
         # A target ID from another channel is not a routing capability.
         one.send({'type':'offer','csrf':a['X-CSRF-Token'],'target':right['id'],'payload':'private-offer'})
         while one.receive() is not None: pass

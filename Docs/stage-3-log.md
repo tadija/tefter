@@ -1,5 +1,7 @@
 # Stage 3 progress and decisions
 
+Current audio status: implemented; see the **Audio follow-up** below. The original acceptance report and approved deferral are retained as historical evidence.
+
 - Read the full approved specification and inspected the existing actor, storage, authorization, HTTP, UI and integration-test patterns before editing.
 - Maintainer explicitly instructed: “do not run stage 1 and 2 anything”. Earlier-stage acceptance and regression suites will not be run; this overrides the requested baseline precondition. Build validation and new Stage 3 tests remain in scope.
 - Plan: Repo registrations/access; capability-driven harness sessions; optional execution links and Git review; privileged executable plugins; evaluate audio prerequisites; final security/deployment/specification reconciliation. Each slice receives focused integration checks and a coherent commit.
@@ -69,3 +71,4 @@ Implementation commits:
 - Audio-only HTTP/WebSocket security test passed: unauthenticated/cross-space/agent denial, origin and CSRF denial, cross-channel signaling denial, logout eviction, protected ICE configuration and mode-0600 enforcement.
 - Independent Chrome processes exchanged actual audio RTP in both directions with nonzero received audio energy. Browser checks passed join/leave, actual microphone track muting, unmute, rejoin, membership eviction, connection cleanup, stopped capture tracks and signaling-loss shutdown. The stricter test explicitly requires a live connected peer and nonempty media statistics, avoiding vacuous assertions before negotiation. Synthetic microphones supply test input; media transport itself is real WebRTC.
 - No TURN server was provisioned and no new mandatory service was introduced. Direct connectivity is verified; operators requiring NAT/firewall relaying can supply ICE servers privately. A live external TURN deployment/relay-only path remains unverified and is documented as a deployment validation limit, not represented as a passing network test.
+- Release-browser validation exposed a departure/revocation race: SDP/ICE already in flight to a removed participant could disconnect the still-authorized sender. The server now drops stale-target signals without ejecting the sender, while still rejecting cross-room forwarding. A focused signaling regression and the two-browser revocation scenario both pass after the fix.
