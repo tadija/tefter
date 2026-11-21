@@ -102,6 +102,7 @@ enum Tefter {
     registerRepos(router, identity)
     registerHarnesses(router, identity)
     registerRepoGit(router, identity)
+    registerPlugins(router, identity)
     try await identity.recoverExecutions()
     try await identity.purgeComms()
     router.get("/api/v1/health") { _, _ in Health(status: "ok") }
