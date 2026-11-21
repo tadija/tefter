@@ -1,5 +1,6 @@
 import Foundation
 import Hummingbird
+import ZIPFoundation
 
 #if os(Linux)
   import Glibc
@@ -7,67 +8,27 @@ import Hummingbird
   import Darwin
 #endif
 
-/// ZIP32, stored entries, UTF-8 names. Keep both entry size and archive size bounded.
-private struct Zip {
-  var data = Data()
-  var central = Data()
-  var count: UInt16 = 0
-  static let crcTable = (0..<256).map { byte -> UInt32 in
-    var n = UInt32(byte)
-    for _ in 0..<8 { n = (n >> 1) ^ (n & 1 == 0 ? 0 : 0xedb8_8320) }
-    return n
-  }
-  mutating func add(_ path: String, _ contents: Data) throws {
-    let name = Data(path.utf8)
-    guard count < 65534, name.count <= 65535,
-      data.count + central.count + contents.count < 128 * 1024 * 1024
-    else { throw HTTPError(.contentTooLarge) }
-    let crc = ~contents.reduce(UInt32.max) {
-      ($0 >> 8) ^ Self.crcTable[Int(($0 ^ UInt32($1)) & 255)]
+extension Archive {
+  fileprivate func add(_ path: String, _ data: Data) throws {
+    try addEntry(
+      with: path, type: path.hasSuffix("/") ? .directory : .file,
+      uncompressedSize: Int64(data.count)
+    ) { position, size in
+      data.subdata(in: Int(position)..<Swift.min(data.count, Int(position) + size))
     }
-    var fields = Data()
-    fields.le(UInt16(20))
-    fields.le(UInt16(0x800))
-    fields.le(UInt16(0))
-    fields.le(UInt16(0))
-    fields.le(UInt16(33))
-    fields.le(crc)
-    fields.le(UInt32(contents.count))
-    fields.le(UInt32(contents.count))
-    fields.le(UInt16(name.count))
-    fields.le(UInt16(0))
-    central.le(UInt32(0x0201_4b50))
-    central.le(UInt16(20))
-    central.append(fields)
-    central.le(UInt16(0))
-    central.le(UInt16(0))
-    central.le(UInt16(0))
-    central.le(UInt32(0))
-    central.le(UInt32(data.count))
-    central.append(name)
-    data.le(UInt32(0x0403_4b50))
-    data.append(fields)
-    data.append(name)
-    data.append(contents)
-    count += 1
   }
-  mutating func finish() -> Data {
-    let offset = data.count
-    data.append(central)
-    data.le(UInt32(0x0605_4b50))
-    data.le(UInt16(0))
-    data.le(UInt16(0))
-    data.le(count)
-    data.le(count)
-    data.le(UInt32(central.count))
-    data.le(UInt32(offset))
-    data.le(UInt16(0))
-    return data
-  }
-}
-extension Data {
-  fileprivate mutating func le<T: FixedWidthInteger>(_ n: T) {
-    Swift.withUnsafeBytes(of: n.littleEndian) { append(contentsOf: $0) }
+
+  fileprivate func add(_ path: String, from directory: Directory, name: String) throws {
+    let (source, length) = try directory.openRegular(name)
+    try addEntry(with: path, type: .file, uncompressedSize: length, bufferSize: 65536) {
+      position, size in
+      try source.seek(toOffset: UInt64(position))
+      let bytes = try source.read(upToCount: size) ?? Data()
+      guard bytes.count == Swift.min(Int64(size), length - position) else {
+        throw HTTPError(.conflict, message: "File changed during export.")
+      }
+      return bytes
+    }
   }
 }
 
@@ -83,7 +44,13 @@ extension Identity {
     func included(_ path: String) -> Bool {
       folder.map { path == $0 || path.hasPrefix($0 + "/") } ?? true
     }
-    var zip = Zip()
+    let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "tefter-export-" + UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(
+      at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+    defer { try? FileManager.default.removeItem(at: temporary) }
+    let url = temporary.appendingPathComponent("space.zip")
+    let zip = try Archive(url: url, accessMode: .create)
     for dir in tree.directories where included(dir) { try zip.add(dir + "/", Data()) }
     for prefix in [""] + tree.directories {
       let dir: Directory
@@ -98,7 +65,7 @@ extension Identity {
         let path = prefix.isEmpty ? name : prefix + "/" + name
         if included(path), (try dir.info(name)?.st_mode ?? 0) & S_IFMT == S_IFREG {
           _ = try Directory.components(path)
-          try zip.add(path, dir.read(name))
+          try zip.add(path, from: dir, name: name)
         }
       }
     }
@@ -106,7 +73,7 @@ extension Identity {
     var ids = Set<String>()
     for doc in tree.documents where included(doc.path) {
       let (dir, name) = try root.parent(doc.path)
-      try zip.add(doc.path, dir.read(name))
+      try zip.add(doc.path, from: dir, name: name)
       if let id = doc.id {
         ids.insert(id)
         let comments = try thread(id, root: root)
@@ -141,11 +108,22 @@ extension Identity {
           + "\nMarkdown is readable directly. Comment authors are identified by participant UUID.\n")
           .utf8))
     try audit(user, "export", space)
+    let source = try FileHandle(forReadingFrom: url)
+    let length = try source.seekToEnd()
+    try source.seek(toOffset: 0)
+    // The open descriptor survives unlink. Disconnecting releases it without leaving private exports on disk.
+    let body = ResponseBody(contentLength: Int(length)) { writer in
+      defer { try? source.close() }
+      while let bytes = try source.read(upToCount: 65536), !bytes.isEmpty {
+        try await writer.write(ByteBuffer(bytes: bytes))
+      }
+      try await writer.finish(nil)
+    }
     return Response(
       status: .ok,
       headers: [
         .contentType: "application/zip", .contentDisposition: "attachment; filename=space.zip",
         .cacheControl: "no-store",
-      ], body: .init(byteBuffer: ByteBuffer(bytes: zip.finish())))
+      ], body: body)
   }
 }

@@ -83,7 +83,7 @@ final class Directory {
     return info
   }
 
-  func read(_ name: String) throws -> Data {
+  func openRegular(_ name: String) throws -> (FileHandle, Int64) {
     try Self.singleName(name)
     let file = openat(fd, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
     guard file >= 0 else { throw Self.failure() }
@@ -92,7 +92,12 @@ final class Directory {
     guard fstat(file, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1 else {
       throw HTTPError(.badRequest)
     }
-    guard info.st_size <= 16 * 1024 * 1024 else { throw HTTPError(.contentTooLarge) }
+    return (handle, Int64(info.st_size))
+  }
+
+  func read(_ name: String) throws -> Data {
+    let (handle, size) = try openRegular(name)
+    guard size <= 16 * 1024 * 1024 else { throw HTTPError(.contentTooLarge) }
     let data = try handle.read(upToCount: 16 * 1024 * 1024 + 1) ?? Data()
     guard data.count <= 16 * 1024 * 1024 else { throw HTTPError(.contentTooLarge) }
     return data

@@ -53,9 +53,10 @@ try {
   await page.getByLabel("File path", { exact: true }).fill("notes.md");
   await page
     .getByLabel("Markdown", { exact: true })
-    .fill("# Meeting notes\n\nA durable decision.");
+    .fill("# Meeting notes\n\nA durable decision.\n\n<form><input name=embedded-control></form>");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.getByRole("heading", { name: "Meeting notes" }).waitFor();
+  assert.equal(await page.locator("article input").count(),0);
   await page
     .getByLabel("New comment", { exact: true })
     .fill("Document approval");

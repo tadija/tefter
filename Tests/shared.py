@@ -31,9 +31,14 @@ class Shared(Workspace):
         settings["saved"] = {"Board":"Kanban"}
         self.call("PUT",base+"views",settings,b)
         self.call("PUT",base+"views",settings,a,409)
+        attachment = Path(self.home.name)/"content/spaces"/space/"Meeting/attachment.bin"
+        with attachment.open("wb") as out:
+            out.truncate(17*1024*1024)
         conn = http.client.HTTPConnection("127.0.0.1",self.port)
         conn.request("GET","/api/v1/"+base+"export?folder=Meeting",headers=b)
         with ZipFile(io.BytesIO(conn.getresponse().read())) as z:
+            self.assertEqual(z.getinfo("Meeting/attachment.bin").file_size,17*1024*1024)
+            self.assertIsNone(z.testzip())
             self.assertIn("Meeting/notes.md",z.namelist())
             self.assertNotIn("Plans/notes.md",z.namelist())
             self.assertEqual(json.loads(z.read(".tefter/views.json"))["defaults"],{"Meeting":"Tasks"})
