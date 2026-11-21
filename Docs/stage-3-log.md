@@ -61,3 +61,11 @@ Implementation commits:
 - `9dcf52e`: trusted versioned JSON plugins and real example.
 - `22e8189`: stable integration references, comments, SSH credential isolation and focused security/browser coverage.
 - Final documentation/report commit follows these implementation commits.
+
+## Audio follow-up
+
+- Maintainer subsequently requested implementation if feasible within remaining usage, superseding the earlier deferral as the desired outcome. Native browser WebRTC provides the maintained media stack; Tefter adds bounded in-memory WebSocket signaling, not custom media transport or a mandatory media service.
+- Implemented six-participant per-channel human voice rooms with join/leave, mute/unmute, participant lists, microphone release and peer cleanup. Every signaling action checks CSRF/current membership; sockets check origin/session/channel access and revalidate delivery. Revoked members are evicted and surviving clients close their media connections. Signaling loss stops local media within the three-second roster lease; reconnect is an explicit rejoin.
+- Audio-only HTTP/WebSocket security test passed: unauthenticated/cross-space/agent denial, origin and CSRF denial, cross-channel signaling denial, logout eviction, protected ICE configuration and mode-0600 enforcement.
+- Independent Chrome processes exchanged actual audio RTP in both directions with nonzero received audio energy. Browser checks passed join/leave, actual microphone track muting, unmute, rejoin, membership eviction, connection cleanup, stopped capture tracks and signaling-loss shutdown. The stricter test explicitly requires a live connected peer and nonempty media statistics, avoiding vacuous assertions before negotiation. Synthetic microphones supply test input; media transport itself is real WebRTC.
+- No TURN server was provisioned and no new mandatory service was introduced. Direct connectivity is verified; operators requiring NAT/firewall relaying can supply ICE servers privately. A live external TURN deployment/relay-only path remains unverified and is documented as a deployment validation limit, not represented as a passing network test.

@@ -98,6 +98,7 @@ enum Tefter {
     registerDocuments(router, identity)
     registerCollaboration(router, identity)
     registerComms(router, identity)
+    registerAudio(router, identity)
     registerSharing(router, identity)
     registerRepos(router, identity)
     registerHarnesses(router, identity)

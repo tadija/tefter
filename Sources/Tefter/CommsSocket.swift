@@ -104,5 +104,6 @@ func commsSocketRouter(_ identity: Identity) -> Router<BasicWebSocketRequestCont
     }
     await identity.closeSocket(key)
   }
+  registerAudioSocket(router, identity)
   return router
 }

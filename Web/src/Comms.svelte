@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Audio from "./Audio.svelte";
   import { onMount } from "svelte";
   import { api, listing } from "./api";
   import { preview } from "./markdown";
@@ -161,6 +162,7 @@
   >
     {#each channels as item}<option value={item.id}>#{item.name}</option>{/each}
   </select>
+  {#if channel}{#key channel}<Audio {space} {channel} {people} />{/key}{/if}
   <form
     onsubmit={async (e) => {
       e.preventDefault();
