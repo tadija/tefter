@@ -65,7 +65,8 @@ extension Identity {
     if let repo = record.repo { _ = try repoAccess(repo, space: record.space, user: user) }
   }
 
-  func terminalClosed(_ id: String, user: String) throws {
+  func closeTerminal(_ pty: TerminalPTY, id: String, user: String) throws {
+    pty.closeSession()
     activeTerminals.remove(id)
     runningExecutions -= 1
     try audit(user, "close-harness-terminal", id)
@@ -82,39 +83,38 @@ func registerHarnessTerminalSocket(_ router: Router<BasicWebSocketRequestContext
     let request = context.request
     let (pty, record, user) = try await identity.openTerminal(parameters.require("ticket"), id: parameters.require("execution"),
       space: parameters.require("space"), request: request)
-    do {
-      try await withThrowingTaskGroup(of: Void.self) { group in
-        // Closing before the group joins also wakes a reader blocked on an idle PTY.
-        defer { pty.closeSession(); group.cancelAll() }
-        group.addTask {
-          for try await packet in inbound.messages(maxSize: 65536) {
-            try await identity.checkTerminalAccess(record, request: request)
-            switch packet {
-            case .binary(let bytes): try pty.input(Data(bytes.readableBytesView))
-            case .text(let text):
-              let size = try JSONDecoder().decode(TerminalSize.self, from: Data(text.utf8))
-              try pty.resize(cols: size.cols, rows: size.rows)
-            }
+    try await withThrowingTaskGroup(of: Void.self) { group in
+      group.addTask {
+        for try await packet in inbound.messages(maxSize: 65536) {
+          try await identity.checkTerminalAccess(record, request: request)
+          switch packet {
+          case .binary(let bytes): try pty.input(Data(bytes.readableBytesView))
+          case .text(let text):
+            let size = try JSONDecoder().decode(TerminalSize.self, from: Data(text.utf8))
+            try pty.resize(cols: size.cols, rows: size.rows)
           }
         }
-        group.addTask {
-          while let bytes = await pty.readChunk() {
-            try await identity.checkTerminalAccess(record, request: request)
-            try await outbound.write(.binary(.init(bytes: bytes)))
-          }
-        }
-        group.addTask {
-          while !Task.isCancelled {
-            try await Task.sleep(for: .seconds(1))
-            try await identity.checkTerminalAccess(record, request: request)
-          }
-        }
-        _ = try await group.next()
       }
-    } catch {
-      try await identity.terminalClosed(record.id, user: user)
-      throw error
+      group.addTask {
+        while let bytes = await pty.readChunk() {
+          try await identity.checkTerminalAccess(record, request: request)
+          try await outbound.write(.binary(.init(bytes: bytes)))
+        }
+      }
+      group.addTask {
+        while !Task.isCancelled {
+          try await Task.sleep(for: .seconds(1))
+          try await identity.checkTerminalAccess(record, request: request)
+        }
+      }
+      defer { group.cancelAll() }
+      do {
+        _ = try await group.next()
+      } catch {
+        try await identity.closeTerminal(pty, id: record.id, user: user)
+        throw error
+      }
+      try await identity.closeTerminal(pty, id: record.id, user: user)
     }
-    try await identity.terminalClosed(record.id, user: user)
   }
 }

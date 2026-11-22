@@ -47,3 +47,7 @@ Open http://127.0.0.1:2909/ and sign in. Use **Account and administration** to a
 - [Development](Docs/Development.md): validation commands and test setup.
 - [Specification](Docs/Specs.md): product direction and implementation contract.
 - [Implementation log](Docs/Log.md) for stage decisions and validation history.
+
+---
+
+`done for fun`
