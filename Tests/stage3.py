@@ -235,13 +235,12 @@ class ExecutionRevocation(Workspace):
 class DeploymentBoundary(Workspace):
     def test_stage3_private_roots_cannot_be_served_as_web_assets(self):
         self.stop()
-        for name in ['repositories']:
-            directory = Path(self.home.name)/name
-            directory.mkdir(exist_ok=True)
-            (directory/'index.html').write_text('Private')
-            run = subprocess.run(['.build/debug/tefter'], env=dict(self.env,TEFTER_WEB=str(directory)),capture_output=True,timeout=5)
-            self.assertNotEqual(run.returncode,0)
-            self.assertIn(b'TEFTER_WEB',run.stderr)
+        directory = Path(self.home.name)/'repositories'
+        directory.mkdir(exist_ok=True)
+        (directory/'index.html').write_text('Private')
+        run = subprocess.run(['.build/debug/tefter'], env=dict(self.env,TEFTER_WEB=str(directory)),capture_output=True,timeout=5)
+        self.assertNotEqual(run.returncode,0)
+        self.assertIn(b'TEFTER_WEB',run.stderr)
 
 
 if __name__ == '__main__':

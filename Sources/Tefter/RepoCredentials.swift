@@ -34,7 +34,7 @@ extension Identity {
 
   func gitEnvironment(at path: String) throws -> [String: String] {
     var environment = ["PATH":"/usr/bin:/bin", "HOME":home.appendingPathComponent("runtime").path,
-      "GIT_CONFIG_NOSYSTEM":"1", "GIT_CONFIG_GLOBAL":"/dev/null", "GIT_TERMINAL_PROMPT":"0"]
+      "GIT_SSH_COMMAND":"/usr/bin/false", "GIT_CONFIG_NOSYSTEM":"1", "GIT_CONFIG_GLOBAL":"/dev/null", "GIT_TERMINAL_PROMPT":"0"]
     let prefix = home.appendingPathComponent("repositories").path + "/"
     guard path.hasPrefix(prefix) else { return environment }
     let components = path.dropFirst(prefix.count).split(separator: "/")
@@ -49,7 +49,7 @@ extension Identity {
     // Git's SSH command variable is shell-parsed: quote only server-generated paths.
     func quote(_ text: String) -> String { "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'" }
     let base = home.appendingPathComponent("secrets/git/" + space + "/" + repo).path
-    environment["GIT_SSH_COMMAND"] = "/usr/bin/ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=" + quote(base + "/known_hosts") + " -i " + quote(base + "/key")
+    environment["GIT_SSH_COMMAND"] = "/usr/bin/ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes -o UserKnownHostsFile=" + quote(base + "/known_hosts") + " -i " + quote(base + "/key")
     environment["GIT_SSH_VARIANT"] = "ssh"
     return environment
   }

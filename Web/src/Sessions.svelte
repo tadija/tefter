@@ -38,8 +38,12 @@
     } catch(e) {error = String(e);} finally {busy = false;}
   }
   async function finish() {
-    try {selected = await api(base()+`executions/${selected!.id}/finish`, "POST"); await load();}
-    catch(e) {error = String(e);}
+    if (!selected || busy) return;
+    busy = true; error = "";
+    try {
+      selected = await api(base()+`executions/${selected.id}/finish`, "POST");
+      await load();
+    } catch(e) {error = String(e);} finally {busy = false;}
   }
   onMount(load);
 </script>
@@ -72,5 +76,5 @@
     <label>Repo ID (optional) <input bind:value={repo} /></label>
   {/if}
   <label>Message <textarea bind:value={message} required maxlength="16384" disabled={busy}></textarea></label>
-  <button disabled={busy || !connection || selected?.status === "finished"}>{busy ? "Running…" : selected ? "Send" : "Start session"}</button>
+  <button disabled={busy || !connection || selected?.status === "running" || selected?.status === "finished"}>{busy ? "Running…" : selected ? "Send" : "Start session"}</button>
 </form>
