@@ -1,6 +1,8 @@
 # Repositories and agent sessions
 
-Stage 3 adds Repos and structured agent sessions to the space navigation. Channel audio is implemented using native browser WebRTC; see [Audio Comms](Audio-evaluation.md) for use and network prerequisites. Video remains future-only.
+Use **Repos** to register a repository in a space. Registration saves its location. An installation administrator can then create a checkout.
+
+Use **Agent sessions** to start a conversation after an administrator grants execution access. A linked repository can have a separate worktree. Review committed changes before approving a fast-forward merge or a push of the session branch. Each action requires a space owner’s approval.
 
 <details>
 <summary>Administration and API examples</summary>

@@ -52,4 +52,3 @@ Sources used in the deployment evaluation:
 - [LiveKit deployment](https://docs.livekit.io/transport/self-hosting/deployment/) and [ports/firewall](https://docs.livekit.io/transport/self-hosting/ports-firewall/): the evaluated external-media alternative and its operational prerequisites. LiveKit is not a dependency of this implementation.
 
 </details>
-
