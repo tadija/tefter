@@ -1,10 +1,13 @@
-# Repos, sessions
+# Repositories and agent sessions
 
 Stage 3 adds Repos and structured agent sessions to the space navigation. Channel audio is implemented using native browser WebRTC; see [Audio Comms](Audio-evaluation.md) for use and network prerequisites. Video remains future-only.
 
+<details>
+<summary>Administration and API examples</summary>
+
 ## Administration and API use
 
-All examples below are JSON bodies for same-origin `/api/v1` requests. Sign in normally; send the `tefter` cookie and the session's `X-CSRF-Token` header on mutations. Never paste credentials into browser console code, shell history, registration locations. Use a protected HTTP client configuration or the application's authenticated requests for sensitive configuration.
+All examples below are JSON bodies for same-origin `/api/v1` requests. Sign in normally; send the `tefter` cookie and the session's `X-CSRF-Token` header on mutations. Never paste credentials into browser console code, shell history or registration locations. Use a protected HTTP client configuration or the application's authenticated requests for sensitive configuration.
 
 ### Repos
 
@@ -54,9 +57,11 @@ The Sessions UI displays that committed diff and offers separate, clearly labell
 
 Changed commits require a new review. Merge is fast-forward-only; divergent branches require operator reconciliation. Push is separate and publishes only the reviewed `tefter/ID` branch to `origin`, without force. It does not publish the checkout's main branch. Session completion never merges or pushes. Worktrees isolate editing directories, not execution security.
 
+</details>
+
 ## Upgrades, backup and deployment
 
-Stop Tefter and take a verified cold backup before upgrading. Schema 3 adds Repo ownership/grants, harness connections/execution grants and execution-record identities additively from schemas 1/2, preserving auth and membership records. Copied registration/manifest files do not confer operational ownership or authorization. Unindexed orphan records after a crash require operator reconciliation; do not import grants from copied metadata.
+Stop Tefter and take a verified cold backup before upgrading. Schema 3 adds Repo ownership/grants, harness connections/execution grants and execution-record identities additively from schemas 1/2, preserving auth and membership records. Copied registration files do not confer operational ownership or authorization. Unindexed orphan records after a crash require operator reconciliation; do not import grants from copied metadata.
 
 Full-instance backups must include `repositories`, `secrets`, operational SQLite and `runtime/sessions`, alongside the existing content/config/history. Separately back up external harness credential homes. Stop external harnesses/editors before copying. After restoring **to a new absolute path**, repair Git worktree pointers for each checkout before using session worktrees:
 

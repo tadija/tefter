@@ -1,7 +1,4 @@
 # Tefter
-**Status:** Approved product direction; implementation contract for three sequential coding-agent shots.  
-**Audience:** Maintainer and coding agents.  
-
 ## 1. Mission and boundaries
 Tefter is a small, self-hosted, filesystem-first workspace where people and AI agents collaborate on documents, tasks, links, conversations, and connected Git repositories.
 
@@ -9,7 +6,6 @@ Tefter is a small, self-hosted, filesystem-first workspace where people and AI a
 
 Tefter is not a generic application framework, SaaS, Git hosting provider, infrastructure manager, agent fleet manager, or replacement for aeLab. It must be useful without aeLab, Docker, SMTP, external database servers, or a connected agent harness. A copied space must remain intelligible as ordinary files.
 
-**Delivery contract:** Implement all mandatory features across **Stage 1 → Stage 2 → Stage 3**, using multiple coherent commits within each stage. The stages are execution checkpoints, not separate specifications or permission to stop after Stage 1. Do not build all three in one unreviewable change. Video is explicitly future-only. Audio is a late Stage 3 capability; see its bounded definition below.
 
 ## 2. Fixed technology and deployment
 - Backend: Swift, Hummingbird, structured concurrency; Linux primary, macOS/WSL practical.
@@ -231,16 +227,9 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 - Use real integration tests for critical boundaries. No mock-only acceptance of persistence, security or external harness support.
 - Document environment variables, deployment, migration and backup steps in Docs, linked from README; keep install/run commands in README. Provide a clean setup from a fresh checkout.
 
-## 10. Implementation process and change control
-1. Inspect repository and existing working code first; preserve functioning behavior. Do not assume a greenfield checkout.
-2. Read **this entire spec** before coding. Identify current stage and create a short execution plan with acceptance tests.
-3. Implement vertical slices; use **multiple meaningful commits** per shot. Keep each commit buildable when feasible.
-4. Run tests/build after each slice and all stage acceptance tests at stage end; fix regressions before advancing.
-5. Maintain `Docs/Specs.md` alongside code when **implementation details** change; preserve approved product decisions. Record deviations, tradeoffs, migrations and incomplete items in a concise decision/progress log. Never silently delete requirements.
-6. Stage 2 extends Stage 1; Stage 3 extends Stage 2. No speculative wholesale rewrites.
-7. At each stage gate report completed items, test commands/results, known limitations, commit hashes and next-stage readiness.
-8. For ambiguous implementation details, choose the simplest secure portable option and document it; request approval for scope/security/product changes, new mandatory services, or removal of required functionality.
-9. The maintainer may run three separate agent sessions, one per stage, each reading the **same** spec and the current repository state.
+## 10. Change control
+
+Record changes to product requirements here and implementation decisions in the [implementation log](Log.md). Verify each stage against its acceptance gate.
 
 ## 11. Explicit non-goals and deferred capabilities
 - Multi-tenant SaaS, federation, cross-instance sync, public signup, SSO, complex per-file ACLs.
@@ -252,37 +241,3 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 
 ## 12. Completion definition
 Tefter is complete when Stage 1, 2 and 3 mandatory acceptance gates pass, the repository builds from a clean checkout, security/portability tests pass, README links to deployment/backup/recovery documentation, and remaining exceptions are explicitly approved and documented. **A feature represented only by scaffolding or a nonfunctional UI does not count as implemented.**
-
-### Stage 1 implementation notes
-
-- A pending move or deletion is recorded in a version-1 `.tefter/relocation.json` before changing the directory entry. The next scan reconciles the portable ID manifest and removes the journal. A conflicting external edit during interrupted relocation is reported for operator reconciliation.
-- View settings store a revision token, directory-to-view defaults and named views. Relative paths are scoped to the owning space. Comment snapshots carry a revision token and retain deleted comment identities for reply attribution.
-- Operational schema version 1 uses SQLite parameter binding and Argon2id hashes. Private Git checkpoints are per space in `runtime/history/<space-id>.git`. Cold backups include these repositories along with the operational database and canonical files.
-
-### Stage 2 implementation notes
-
-- Operational schema 2 adds agent credentials/grants and channel sequence high-water marks, preserving existing accounts, grants and sessions. Agent bearer credentials authorize only Comms; they never grant filesystem, harness or general content API access. Non-secret agent profiles live under `installation/agents`.
-- `.tefter/channels.json` version 1 contains channel UUIDs and names. Comms JSONL records contain UUID, per-channel monotonic sequence, author ID/kind, UTC creation time, body and client nonce. Atomic daily-file replacement prevents partial records; sequence gaps after failed writes are valid. Repeated author/nonce pairs are idempotent during retention. Messages are bounded at 16 KiB, daily files at 16 MiB, channels at 100 per space and history pages at 100 messages.
-- Root `comms/` is server-managed ephemeral storage, excluded from content navigation, search, space ZIPs and private Git. Installation backups preserve it. Retention defaults to 30 days, configurable with `TEFTER_COMMS_RETENTION_DAYS` (1–3650); pruning runs at startup, every checkpoint interval and on channel reads/writes.
-
-- Source owners create operational sharing grants binding source-space/entity UUID to a destination space and an explicit copy-export flag. A destination member accepts a grant as `.tefter/references/<grant-id>.json` version 1 (`id`, `source`, `entity`, `target`). Portable files carry no permission, cached title or source text; each preview, search and export resolves the current operational grant and stable entity ID. Only source owners grant/revoke sharing. Members can remove a reference without changing its source.
-- Shared previews are read-only and include permission-checked comment pages. Default space exports retain references even when unavailable. `includeShared=true` explicitly requests copies and fails if any referenced source is unavailable or denies copies. Authorized copies are under `shared-copies/<grant-id>/` with content, comments, author profiles and source/entity attribution. Folder exports contain owned content only because references are space-scoped.
-- WebSockets at `/api/v1/spaces/:space/channels/:channel/live?after=<sequence>` replay retained messages after the cursor and deliver ordered JSON message events. Cookie handshakes require the configured public origin (or the direct HTTP listener origin for local use); browser sends require session CSRF in the JSON `csrf` field. Bearer clients may omit Origin. Permissions/session validity are checked per send and before each delivered event; idle subscriptions recheck every 250 ms. Disconnects require reconnect from the last sequence. Clients deduplicate by sequence/message ID. Slow readers backpressure the writer; page size, frame/message size and 8-per-principal/64-total connections bound queues. No permanent Comms FTS index is built.
-
-- The existing `document(..., identify: true)` path is exposed through a membership/CSRF-checked `POST .../identify` endpoint so Comms references can identify plain Markdown without changing its bytes. Granted agents extend the existing People view. Older spaces with a conflicting root `comms/` entry fail upgrade explicitly; nested ordinary `comms` folders remain supported.
-
-### Stage 3 implementation notes
-
-- Operational schema 3 adds `repo_ownership` and `repo_grants` without changing earlier auth or collaboration records. Version-1 Repo registration JSON stores `id`, optional owner `space`, `name`, credential-free `location`, and `description`. Installation files live in `installation/repos/<id>.json`; space-owned files in `.tefter/repos/<id>.json`. SQLite ownership is authoritative for access; copied registration files do not confer grants. A registration alone never clones or executes its location. Space owners/admins register owned Repos; installation admins register central Repos and grant/revoke their access to spaces. Both use `/api/v1/repos`; space-scoped reads always require current membership and owning-space or explicit installation grant. Checkouts and credentials are separate from this metadata.
-- Harness connections and per-user/per-space execution grants are operational tables. The `codex-exec-v1` adapter invokes an administrator-selected local Codex executable with read-only sandbox, ignored user config/rules, ephemeral JSON events and a 120-second turn deadline. Supported capabilities are start/message/status; resume, TTY, cancellation and live streaming are unavailable. It reconstructs turns from Tefter conversation records; this is not harness-context resume. Version-1 durable JSON records under `runtime/sessions/<id>.json` contain initiator, optional task/Repo IDs, UTC timestamps, status and structured conversation. Startup marks interrupted running turns explicitly. They are protected operational records, excluded from space exports and content Git. Every read/turn/finish requires current space access and an explicit user/space/connection execution grant; linked Repo access is also rechecked. No space membership or Comms agent credential implies execution permission.
-- Repo checkouts are created only by installation administrators, separately under `repositories/<space>/<repo>/checkout`, including for installation registrations granted to multiple spaces. Session worktrees/branches are opt-in (`session-<execution-id>`, `tefter/<execution-id>`). A session Repo link does not imply the harness sees or edits that checkout. The initial adapter is read-only; worktrees support operator/external editing and committed review. Status/log/diff use bounded argv-based Git without hooks, external diffs, text conversion, credential helpers or interactive prompts. Merge requires the space owner's explicit approval of exact reviewed base/head commits and is fast-forward-only. Push requires separate explicit approval and sends only the reviewed session branch to `origin`, without force or automatic default-branch publication. No session lifecycle action merges or pushes.
-- **Historical reviewed Stage 3 exception (superseded by the Audio follow-up below; maintainer-approved 2026-11-22):** audio was deferred as documented in [Audio evaluation](Audio-evaluation.md). The maintainer explicitly selected “Approve documented audio deferral” after reviewing the signaling/media/deployment analysis. This records the permitted exception without removing the original audio requirement; no functional audio is claimed and no mock controls are shipped.
-- Repo SSH deploy keys and pinned `known_hosts` are separately administered with `PUT/DELETE /spaces/<space>/repos/<repo>/credentials`, stored privately in `secrets/git/<space>/<repo>`. Only installation admins with space/Repo access can configure them. Keys never appear in registration responses, ZIPs, content Git or audit text. HTTPS tokens and interactive SSH agents are not supported; public remotes and separately configured SSH deploy keys are supported. `/usr/bin/ssh` is needed only for SSH remotes.
-- `.tefter/integration-links.json` version 1 stores a revision and stable source-entity → Repo/session references (`id`, `source`, `kind`, `target`). Creating a link identifies plain Markdown through the existing sidecar without rewriting its bytes. Links survive source moves and resolve target permissions on every read; unavailable targets reveal no cached title/history. Mutations require the current file revision. The file is included in whole-space exports and content checkpoints. Installation Repo exports contain portable ID-only reference descriptions rather than copied central registrations. Repo comments are scoped to the referencing space; execution comments additionally require current execution permission. Both reuse existing author/edit/reply/concurrency semantics. Execution records/comments are excluded from ordinary space ZIPs to preserve the separate execution boundary; full-instance backups retain them.
-
-### Audio follow-up implementation notes
-
-- After approving the recorded audio deferral, the maintainer requested implementation if feasible. The earlier exception remains historical; channel audio is now implemented with the maintained browser-native WebRTC stack and same-origin Tefter WebSocket signaling. No mandatory media component was added. See [Audio Comms](Audio-evaluation.md) for the exact deployment and tested contract. Video remains future-only.
-- Human cookie sessions only; room/channel membership, Origin and per-action CSRF checks apply to join, mute and signaling. Server-generated peer IDs do not confer cross-room access. Room state and bounded SDP/ICE queues exist in memory only, outside Git and content exports. Limits: six participants/room, two connections/user, 64 installation-wide, ten-second unjoined reservation expiry, 32 KiB frames, 24 KiB payloads, 64 queued signals/recipient and 80 actions/second/connection.
-- Clients stop microphone capture and close peers on leave/unmount/disconnect/revocation. Server authorization checks run before delivery and during 250 ms roster updates; a three-second missing-roster lease stops media. Reconnect requires explicit rejoin. Mute disables the actual microphone track. Only audio tracks are requested.
-- Optional mode-0600 `secrets/audio-ice.json` supplies up to eight ICE server records (`urls`, optional `username`, `credential`) to currently authorized human channel members. No external ICE provider is enabled by default. Direct actual audio transmission is verified between independent browser processes; deployment-specific external TURN/relay-only connectivity and real microphone hardware have not been tested. This limitation is documented without claiming universal network reachability.

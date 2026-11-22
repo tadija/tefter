@@ -1,6 +1,6 @@
 # Development and validation
 
-Stage 3 implementation and acceptance evidence are recorded in the [Stage 3 log](stage-3-log.md). Earlier-stage suites were explicitly not run during this shot at the maintainer’s request. See the [specification](Specs.md) for the next acceptance gate and the [Stage 1 log](stage-1-log.md) and [Stage 2 log](stage-2-log.md) for implementation decisions and verified results.
+Build and test from the repository root. See the [implementation log](Log.md) for historical results.
 
 ## Validation
 
@@ -44,4 +44,8 @@ node Web/tests/audio.mjs
 TEFTER_TEST_BINARY=.build/release/tefter node Web/tests/audio.mjs
 ```
 
-The browser test uses synthetic microphones in two independent Chrome processes and requires actual received RTP bytes and nonzero audio energy. It covers room controls, capture cleanup, revocation and signaling-loss shutdown. It does not provision an external TURN server or validate a relay-only network path. Historical implementation reports remain in [Stage 1](stage-1-log.md), [Stage 2](stage-2-log.md) and [Stage 3](stage-3-log.md); the Stage 3 audio follow-up supersedes its original deferred-audio status.
+The browser test uses synthetic microphones in two independent Chrome processes and requires actual received RTP bytes and nonzero audio energy. It covers room controls, capture cleanup, revocation and signaling-loss shutdown. It does not provision an external TURN server or validate a relay-only network path.
+
+## Release identity
+
+Set the release number in `VERSION`. Swift builds embed it with the Git commit. For a source archive without Git metadata, include the full commit hash in `BUILD`. Otherwise the build ID displays as `unknown`.

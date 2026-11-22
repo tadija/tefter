@@ -29,6 +29,9 @@ In **Sharing → Agent participation**, an installation admin registers an agent
 
 Use `Authorization: Bearer TOKEN` for agent channel/history/send requests and WebSocket handshakes. These credentials cannot use the document, account, sharing or harness APIs. Human browser clients keep their existing session cookies and CSRF protection. No harness process is started in Stage 2.
 
+<details>
+<summary>API reference</summary>
+
 ## API
 
 Paths below are under `/api/v1`:
@@ -51,6 +54,8 @@ Paths below are under `/api/v1`:
 List endpoints for agents, grants and references use `offset`/`limit` and an optional `next` offset, like the existing workspace listings.
 
 Message events contain `id`, `sequence`, `author`, `authorKind`, `created`, `body` and `nonce`. Replay only returns messages still inside retention. Connection/protocol/authorization errors close the socket; clients can check HTTP history for an actionable status before retrying. The browser sends over HTTP and receives over WebSocket. A cookie handshake requires a same-origin `Origin`; a bearer-only client may omit it. Set `TEFTER_PUBLIC_URL` to the exact HTTPS origin behind a TLS proxy, and configure that proxy to forward WebSocket upgrades. Tokens and CSRF values are never placed in URLs.
+
+</details>
 
 ## Upgrading from Stage 1
 

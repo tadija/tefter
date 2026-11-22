@@ -59,6 +59,12 @@ TEFTER_HOME=/private/tefter-restored .build/release/tefter
 
 Sign in to the restored instance, open a known document, check its comments and search for a known term. The integration suite performs this round trip and checks that a changed backup fails verification.
 
+<details>
+<summary>Recover a Git checkpoint</summary>
+
 ## Checkpoint recovery
 
 If checkpoints repeatedly fail after an unclean shutdown, stop the server and back up the installation. With no Git process using the affected private repository, inspect it with `git --git-dir="$TEFTER_HOME/runtime/history/SPACE-ID.git" fsck`. Clear a confirmed stale Git lock before restarting. The next checkpoint reads the canonical space files again.
+
+</details>
+

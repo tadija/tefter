@@ -33,6 +33,9 @@ A failed media connection displays a TURN/connectivity error; leave and rejoin a
 - Participants and queued signals are checked against current authorization. The server polls every 250 ms and clients close removed peers. A three-second roster lease stops all local media if signaling becomes unavailable. Normal browser clients enforce removal; as with any peer-to-peer system, Tefter cannot prevent people from communicating independently outside the application or recall already delivered media.
 - At most six connections per room, two per human and 64 across the installation; unjoined reservations expire after ten seconds. Frames are capped at 32 KiB, signal payloads at 24 KiB, queued signals at 64 per recipient and actions at 80 per connection per second. Overflow or invalid actions disconnect the client. SDP/ICE and media are not logged or persisted; audit records contain join attribution only.
 
+<details>
+<summary>Validation and decision history</summary>
+
 ## Verified behavior
 
 `python3 -m unittest discover -s Tests -p audio.py` tests real HTTP/WebSockets for session/membership/origin/CSRF isolation, denied cross-channel forwarding, human-only access, logout eviction and protected ICE configuration.
@@ -47,3 +50,6 @@ Sources used in the deployment evaluation:
 
 - [WebRTC peer connections](https://webrtc.org/getting-started/peer-connections): signaling and ICE/STUN/TURN requirements.
 - [LiveKit deployment](https://docs.livekit.io/transport/self-hosting/deployment/) and [ports/firewall](https://docs.livekit.io/transport/self-hosting/ports-firewall/): the evaluated external-media alternative and its operational prerequisites. LiveKit is not a dependency of this implementation.
+
+</details>
+
