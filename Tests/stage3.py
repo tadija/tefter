@@ -232,52 +232,10 @@ class ExecutionRevocation(Workspace):
         self.call('GET',f"spaces/{space}/executions/{records[0]['id']}",session=a,expected=403)
 
 
-class Plugins(Workspace):
-    def test_protocol_privilege_timeout_and_output_bounds(self):
-        a = self.admin
-        self.call('POST','users',{'email':'plugin-member@example.test','password':self.password},a)
-        b = self.login('plugin-member@example.test')
-        manifest = dict(version=1,name='Word count',executable=shutil.which('python3'),
-            arguments=[str(Path('Examples/plugins/word-count.py').resolve())],
-            commands=['word-count'],hooks=['word-count'],timeoutSeconds=2)
-        self.call('POST','plugins',manifest,b,403)
-        pid = self.call('POST','plugins',manifest,a)[1]['id']
-        self.call('GET','plugins',session=b,expected=403)
-        invoke = dict(version=1,point='command',name='word-count',text='one two three')
-        self.call('POST',f'plugins/{pid}/invoke',invoke,b,403)
-        result = self.call('POST',f'plugins/{pid}/invoke',invoke,a)[1]
-        self.assertEqual(result['outcome'],'completed')
-        self.assertEqual(result['response']['text'],'3')
-        self.assertEqual(result['response']['id'],result['id'])
-        self.call('POST',f'plugins/{pid}/invoke',dict(invoke,point='hook'),a)
-        self.call('POST',f'plugins/{pid}/invoke',dict(invoke,name='arbitrary'),a,400)
-        self.call('POST',f'plugins/{pid}/invoke',dict(invoke,version=2),a,400)
-        self.call('POST',f'plugins/{pid}/invoke',invoke,{'Cookie':a['Cookie']},403)
-        for code, expected in [("import time;time.sleep(10)",'timed-out'),
-                               ("print('x'*100000)",'output-limit'),
-                               ("print('not-json')",'invalid-response'),
-                               ("raise SystemExit(7)",'failed')]:
-            m = dict(manifest,arguments=['-c',code],timeoutSeconds=1)
-            plugin = self.call('POST','plugins',m,a)[1]['id']
-            started = time.monotonic()
-            run = self.call('POST',f'plugins/{plugin}/invoke',invoke,a)[1]
-            self.assertEqual(run['outcome'],expected)
-            self.assertLess(time.monotonic()-started,3)
-        marker = Path(self.home.name)/'escaped-child'
-        child = "import time,pathlib;time.sleep(2);pathlib.Path("+repr(str(marker))+").write_text('escaped')"
-        parent = "import subprocess,sys,time;subprocess.Popen([sys.executable,'-c',"+repr(child)+"]);time.sleep(10)"
-        plugin = self.call('POST','plugins',dict(manifest,arguments=['-c',parent],timeoutSeconds=1),a)[1]['id']
-        self.assertEqual(self.call('POST',f'plugins/{plugin}/invoke',invoke,a)[1]['outcome'],'timed-out')
-        time.sleep(1.5)
-        self.assertFalse(marker.exists(),'Timed-out plugin descendants must not survive')
-        self.stop(); self.start()
-        self.assertTrue(any(p['id']==pid for p in self.call('GET','plugins',session=a)[1]['plugins']))
-
-
 class DeploymentBoundary(Workspace):
     def test_stage3_private_roots_cannot_be_served_as_web_assets(self):
         self.stop()
-        for name in ['repositories','plugins']:
+        for name in ['repositories']:
             directory = Path(self.home.name)/name
             directory.mkdir(exist_ok=True)
             (directory/'index.html').write_text('Private')

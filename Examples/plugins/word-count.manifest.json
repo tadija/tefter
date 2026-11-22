@@ -1,1 +1,0 @@
-{"version":1,"name":"Word count","executable":"/usr/bin/python3","arguments":["/absolute/path/to/tefter/Examples/plugins/word-count.py"],"commands":["word-count"],"hooks":["word-count"],"timeoutSeconds":5}

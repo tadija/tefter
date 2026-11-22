@@ -18,7 +18,7 @@ Tefter is not a generic application framework, SaaS, Git hosting provider, infra
 - Persistence: canonical Markdown/plain files; SQLite for authoritative operational accounts/auth/session state and **rebuildable** content/search indexes. SQLite FTS5 for search.
 - Internal content history: private Git with batched checkpoints for appropriate durable files; excluded from auth/secrets, ephemeral Comms, repository clones and transient session runtime. Git commits do not define write durability.
 - WebSockets: Comms and agent-session streaming; regular HTTP for CRUD and history.
-- Minimal dependencies; no premature generic plugin/UI framework. Share UI code with aeLab only after independently justified reuse.
+- Minimal dependencies; avoid a generic UI framework. Share UI code with aeLab only after independently justified reuse.
 - Configuration: documented environment/config file, XDG-friendly paths, strict file permissions for secrets, health/readiness endpoints, graceful shutdown and restart.
 
 ## 3. Domain and authorization
@@ -75,7 +75,6 @@ tefter-home/
   repositories/               # Git checkouts/worktrees; never content Git
   runtime/tefter.sqlite
   runtime/sessions/
-  plugins/
   secrets/
 ```
 This is a **recommended starting layout**, not an instruction to place operational credentials in portable space exports. The agent must settle exact filenames, JSON schemas and version fields before coding the relevant slice and document them in this spec.
@@ -209,31 +208,26 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 - Never automatically merge or push on session completion. Worktrees reduce editing conflicts, **not** security risks.
 - Remote harnesses may use their own checkout; never assume a remote process sees Tefter's local paths.
 
-### 7.4 Plugins
-- Trusted administrator-installed executable subprocesses, language-neutral, with versioned manifest and JSON stdin/stdout request/response, explicit command/hook extension points, timeouts, bounded output, exit-code handling and logs.
-- Bash-friendly, not Bash-only; one demonstrative example plugin. No generic app marketplace, arbitrary UI extension framework or pretense of sandboxing.
-- Plugins must not bypass the Tefter authorization boundary through user-facing APIs. Treat plugin execution as privileged administrative configuration.
-
-### 7.5 Audio Comms and video boundary
+### 7.4 Audio Comms and video boundary
 - **Audio Comms is a late Stage 3 goal:** simple per-channel voice-room participation, join/leave, mute and participant list. Specify signaling, authentication and deployment prerequisites before implementation. Use a maintained WebRTC stack or an appropriately scoped external media component; do not hand-roll media transport.
 - If audio requires disproportionate new infrastructure, document the blocker and seek maintainer approval rather than silently replacing it with a fake UI or claiming completion.
 - **Video is future-only**, not required for completion.
 
-**Stage 3 acceptance gate:** Repo registration in both scopes enforces access; at least one real supported harness adapter can establish and interact with an authorized session; unsupported capabilities are reported honestly; plugin protocol executes one safe example; code review requires explicit approval; audio either passes end-to-end acceptance or is explicitly recorded as a reviewed exception, never silently omitted.
+**Stage 3 acceptance gate:** Repo registration in both scopes enforces access; at least one real supported harness adapter can establish and interact with an authorized session; unsupported capabilities are reported honestly; code review requires explicit approval; audio either passes end-to-end acceptance or is explicitly recorded as a reviewed exception, never silently omitted.
 
 ## 8. API and UI contract
 - Version all HTTP routes under `/api/v1`; use JSON for metadata and content endpoints with explicit content types, validation and consistent error envelopes.
-- Cover auth/session, organizations, spaces/memberships, files/entities, views, comments, search, export, People, Comms/channels, shares, Repos, harnesses, sessions and plugins as each stage lands.
+- Cover auth/session, organizations, spaces/memberships, files/entities, views, comments, search, export, People, Comms/channels, shares, Repos, harnesses and sessions as each stage lands.
 - Use stable IDs in references; never trust a client-supplied space ID without checking ownership/access. Paginate listings/search and bounded history. Expose revision tokens and conditional updates.
 - WebSockets authenticate and authorize on connect **and** on subscriptions/actions; recheck on revocation. Protect against cross-origin misuse and resource exhaustion.
 - UI: compact space switcher, file tree, searchable content, Markdown reader/editor, contextual views, comments/activity, URL cards, task board, Comms, Repos and session interface. Responsive, keyboard-usable, clear loading/empty/error states.
 - Avoid claiming live presence, resumability or harness state unless supported by observed data.
 
 ## 9. Security, failure handling and tests
-- Threat-model space boundaries, external filesystem edits, malicious Markdown, unsafe URLs, ZIP exports, symlinks, Git arguments, plugin subprocesses, harness privileges and WebSocket streams.
+- Threat-model space boundaries, external filesystem edits, malicious Markdown, unsafe URLs, ZIP exports, symlinks, Git arguments, harness privileges and WebSocket streams.
 - No passwords, API keys, auth cookies, SMTP secrets, Git credentials or session tokens in readable profiles, exports, internal Git, logs or browser bundles.
 - Audit meaningful mutations and privileged actions without leaking secret content.
-- Test: auth/session/CSRF; org and space isolation; shared grant/revoke; path traversal/symlink race handling; concurrent writes; restart and crash recovery; FTS rebuild; URL SSRF; retention; WebSocket authorization; Git checkout isolation; plugin timeout; adapter capability fallbacks; export/restore round trips.
+- Test: auth/session/CSRF; org and space isolation; shared grant/revoke; path traversal/symlink race handling; concurrent writes; restart and crash recovery; FTS rebuild; URL SSRF; retention; WebSocket authorization; Git checkout isolation; adapter capability fallbacks; export/restore round trips.
 - Use real integration tests for critical boundaries. No mock-only acceptance of persistence, security or external harness support.
 - Document environment variables, deployment, migration and backup steps in Docs, linked from README; keep install/run commands in README. Provide a clean setup from a fresh checkout.
 
@@ -254,7 +248,6 @@ Example IDs are illustrative; choose one consistent stable-ID scheme. Use ISO-86
 - Webpage archiving, browser extensions, AI summaries, sophisticated URL deduplication.
 - Agent fleet operations, generalized orchestration, infrastructure monitoring, mandatory aeLab, universal terminal support.
 - Automatic unreviewed Git merges/pushes, Git hosting, worktrees as a security sandbox.
-- Generic plugin marketplace or dynamic UI app framework.
 - Video conferencing. Audio remains a bounded late-stage requirement as defined above.
 
 ## 12. Completion definition
@@ -284,7 +277,6 @@ Tefter is complete when Stage 1, 2 and 3 mandatory acceptance gates pass, the re
 - Harness connections and per-user/per-space execution grants are operational tables. The `codex-exec-v1` adapter invokes an administrator-selected local Codex executable with read-only sandbox, ignored user config/rules, ephemeral JSON events and a 120-second turn deadline. Supported capabilities are start/message/status; resume, TTY, cancellation and live streaming are unavailable. It reconstructs turns from Tefter conversation records; this is not harness-context resume. Version-1 durable JSON records under `runtime/sessions/<id>.json` contain initiator, optional task/Repo IDs, UTC timestamps, status and structured conversation. Startup marks interrupted running turns explicitly. They are protected operational records, excluded from space exports and content Git. Every read/turn/finish requires current space access and an explicit user/space/connection execution grant; linked Repo access is also rechecked. No space membership or Comms agent credential implies execution permission.
 - Repo checkouts are created only by installation administrators, separately under `repositories/<space>/<repo>/checkout`, including for installation registrations granted to multiple spaces. Session worktrees/branches are opt-in (`session-<execution-id>`, `tefter/<execution-id>`). A session Repo link does not imply the harness sees or edits that checkout. The initial adapter is read-only; worktrees support operator/external editing and committed review. Status/log/diff use bounded argv-based Git without hooks, external diffs, text conversion, credential helpers or interactive prompts. Merge requires the space owner's explicit approval of exact reviewed base/head commits and is fast-forward-only. Push requires separate explicit approval and sends only the reviewed session branch to `origin`, without force or automatic default-branch publication. No session lifecycle action merges or pushes.
 - **Historical reviewed Stage 3 exception (superseded by the Audio follow-up below; maintainer-approved 2026-11-22):** audio was deferred as documented in [Audio evaluation](Audio-evaluation.md). The maintainer explicitly selected “Approve documented audio deferral” after reviewing the signaling/media/deployment analysis. This records the permitted exception without removing the original audio requirement; no functional audio is claimed and no mock controls are shipped.
-- Plugins use version-1 `plugins/<id>/manifest.json` with executable/argv, declared command/hook names and a 1–120 second deadline. Installation and invocation are administrator-only. Explicit command and hook dispatch uses one JSON stdin request (`version`, unique `id`, `point`, declared `name`, bounded `text`) and one JSON stdout response (`version`, matching `id`, `ok`, `text`). Unknown protocol versions/points are rejected; stdout is capped at 64 KiB. Hook dispatch is explicit administrative invocation, never an automatic elevation from ordinary space activity. Runs audit start/outcome/exit status without recording request/response text or stderr. Plugins are trusted host processes, not sandboxed extensions; no credentials belong in manifests. The example word counter runs without network or workspace access.
 - Repo SSH deploy keys and pinned `known_hosts` are separately administered with `PUT/DELETE /spaces/<space>/repos/<repo>/credentials`, stored privately in `secrets/git/<space>/<repo>`. Only installation admins with space/Repo access can configure them. Keys never appear in registration responses, ZIPs, content Git or audit text. HTTPS tokens and interactive SSH agents are not supported; public remotes and separately configured SSH deploy keys are supported. `/usr/bin/ssh` is needed only for SSH remotes.
 - `.tefter/integration-links.json` version 1 stores a revision and stable source-entity → Repo/session references (`id`, `source`, `kind`, `target`). Creating a link identifies plain Markdown through the existing sidecar without rewriting its bytes. Links survive source moves and resolve target permissions on every read; unavailable targets reveal no cached title/history. Mutations require the current file revision. The file is included in whole-space exports and content checkpoints. Installation Repo exports contain portable ID-only reference descriptions rather than copied central registrations. Repo comments are scoped to the referencing space; execution comments additionally require current execution permission. Both reuse existing author/edit/reply/concurrency semantics. Execution records/comments are excluded from ordinary space ZIPs to preserve the separate execution boundary; full-instance backups retain them.
 

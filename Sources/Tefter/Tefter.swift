@@ -79,7 +79,7 @@ enum Tefter {
     let assets = settings["TEFTER_WEB"] ?? "Web/dist"
     let publicPath = URL(fileURLWithPath: assets).standardizedFileURL.resolvingSymlinksInPath().path
     let privatePath = home.standardizedFileURL.resolvingSymlinksInPath().path
-    let protectedDirectories = ["content", "config", "runtime", "installation", "secrets", "repositories", "plugins"].map {
+    let protectedDirectories = ["content", "config", "runtime", "installation", "secrets", "repositories"].map {
       privatePath + "/" + $0
     }
     guard publicPath != "/", publicPath != privatePath, !privatePath.hasPrefix(publicPath + "/"),
@@ -103,7 +103,6 @@ enum Tefter {
     registerRepos(router, identity)
     registerHarnesses(router, identity)
     registerRepoGit(router, identity)
-    registerPlugins(router, identity)
     registerExecutionComments(router, identity)
     registerRepoCredentials(router, identity)
     registerIntegrationLinks(router, identity)

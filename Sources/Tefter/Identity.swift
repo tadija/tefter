@@ -27,7 +27,6 @@ struct Space: ResponseCodable {
 actor Identity {
   var audioPeers: [String: AudioPeer] = [:]
   var gitOperations = Set<String>()
-  var runningPlugins = 0
   var runningExecutions = 0
   var socketCounts: [String: Int] = [:]
   var indexedSpaces = Set<String>()

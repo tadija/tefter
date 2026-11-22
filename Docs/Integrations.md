@@ -1,10 +1,10 @@
-# Repos, sessions and trusted plugins
+# Repos, sessions
 
 Stage 3 adds Repos and structured agent sessions to the space navigation. Channel audio is implemented using native browser WebRTC; see [Audio Comms](Audio-evaluation.md) for use and network prerequisites. Video remains future-only.
 
 ## Administration and API use
 
-All examples below are JSON bodies for same-origin `/api/v1` requests. Sign in normally; send the `tefter` cookie and the session's `X-CSRF-Token` header on mutations. Never paste credentials into browser console code, shell history, registration locations or plugin manifests. Use a protected HTTP client configuration or the application's authenticated requests for sensitive configuration.
+All examples below are JSON bodies for same-origin `/api/v1` requests. Sign in normally; send the `tefter` cookie and the session's `X-CSRF-Token` header on mutations. Never paste credentials into browser console code, shell history, registration locations. Use a protected HTTP client configuration or the application's authenticated requests for sensitive configuration.
 
 ### Repos
 
@@ -54,29 +54,15 @@ The Sessions UI displays that committed diff and offers separate, clearly labell
 
 Changed commits require a new review. Merge is fast-forward-only; divergent branches require operator reconciliation. Push is separate and publishes only the reviewed `tefter/ID` branch to `origin`, without force. It does not publish the checkout's main branch. Session completion never merges or pushes. Worktrees isolate editing directories, not execution security.
 
-### Plugins
-
-Plugins are **trusted host executables**, installed and invoked only by installation administrators. They are not sandboxed. No ordinary space API automatically invokes a privileged plugin. Review executable source and use an OS service account appropriate to that trust. `POST /plugins` installs a version-1 manifest; `GET /plugins` lists installed manifests. See [word-count.manifest.json](../Examples/plugins/word-count.manifest.json); replace its example path with the actual absolute script path. A system Python interpreter runs the bundled real [word counter](../Examples/plugins/word-count.py).
-
-Invoke `POST /plugins/PLUGIN/invoke` with:
-
-```json
-{"version":1,"point":"command","name":"word-count","text":"count these words"}
-```
-
-The explicitly declared `hook` point uses the same body/protocol; hooks are manually dispatched by administrators, not triggered automatically by unprivileged content events. Requests are one JSON document on stdin with a unique `id`. Stdout must contain exactly one response `{"version":1,"id":"SAME-ID","ok":true,"text":"3"}`. Unknown fields may be ignored; versions and IDs must match. No protocol text is interpreted as shell code.
-
-Runs return `completed`, `plugin-error`, `failed`, `timed-out`, `output-limit` or `invalid-response`, with exit code and a valid response when available. Input text is bounded to 16 KiB, stdout to 64 KiB, deadlines to 1–120 seconds and concurrency to four. Executables receive a minimal environment and their private installation directory as cwd/HOME. Stderr is discarded; audit records retain identities/outcomes/exit code rather than content or credentials. Process-group termination kills descendants on completion, overflow or timeout. There is no UI-extension framework or marketplace.
-
 ## Upgrades, backup and deployment
 
 Stop Tefter and take a verified cold backup before upgrading. Schema 3 adds Repo ownership/grants, harness connections/execution grants and execution-record identities additively from schemas 1/2, preserving auth and membership records. Copied registration/manifest files do not confer operational ownership or authorization. Unindexed orphan records after a crash require operator reconciliation; do not import grants from copied metadata.
 
-Full-instance backups must include `repositories`, `plugins`, `secrets`, operational SQLite and `runtime/sessions`, alongside the existing content/config/history. Separately back up external harness credential homes and trusted plugin executables/scripts. Stop external harnesses/editors before copying. After restoring **to a new absolute path**, repair Git worktree pointers for each checkout before using session worktrees:
+Full-instance backups must include `repositories`, `secrets`, operational SQLite and `runtime/sessions`, alongside the existing content/config/history. Separately back up external harness credential homes. Stop external harnesses/editors before copying. After restoring **to a new absolute path**, repair Git worktree pointers for each checkout before using session worktrees:
 
 ```sh
 git -C /restored/tefter/repositories/SPACE/REPO/checkout worktree repair \
   /restored/tefter/repositories/SPACE/REPO/session-SESSION
 ```
 
-Repeat for every worktree (or pass several worktree paths to one repair command). Verify with `git worktree list` and `git status` in each restored worktree. External executable paths, plugin arguments and credential-home pointers may need administrator reconfiguration after moving hosts. Do not expose installation, runtime, secret, plugin or repository directories as web assets. Both new private roots are rejected by the server's asset-path check. The same single Swift executable, external compiled assets and TLS reverse proxy remain sufficient; Codex and plugins are optional integrations. Audio uses browser WebRTC and the existing signaling server; external ICE/TURN services are optional deployment configuration.
+Repeat for every worktree (or pass several worktree paths to one repair command). Verify with `git worktree list` and `git status` in each restored worktree. External executable paths and credential-home pointers may need administrator reconfiguration after moving hosts. Do not expose installation, runtime, secret or repository directories as web assets. The private repository root is rejected by the server's asset-path check. The same single Swift executable, external compiled assets and TLS reverse proxy remain sufficient; Codex is optional. Audio uses browser WebRTC and the existing signaling server; external ICE/TURN services are optional deployment configuration.
