@@ -24,7 +24,8 @@ let package = Package(
         .product(name: "Crypto", package: "swift-crypto"),
         .product(name: "Hummingbird", package: "hummingbird"),
         .product(name: "HummingbirdWebSocket", package: "hummingbird-websocket"),
-      ]),
+      ], plugins: ["BuildVersion"]),
+    .plugin(name: "BuildVersion", capability: .buildTool()),
     .testTarget(name: "StorageTests", dependencies: ["Tefter"], path: "Tests/StorageTests"),
   ]
 )

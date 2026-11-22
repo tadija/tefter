@@ -108,6 +108,9 @@ enum Tefter {
     registerIntegrationLinks(router, identity)
     try await identity.recoverExecutions()
     try await identity.purgeComms()
+    router.get("/api/v1/version") { _, _ in
+      ["version": TefterVersion.current, "build": TefterVersion.build]
+    }
     router.get("/api/v1/health") { _, _ in Health(status: "ok") }
     router.get("/api/v1/ready") { _, _ in Health(status: "ready") }
     router.add(middleware: FileMiddleware(assets, searchForIndexHtml: true))

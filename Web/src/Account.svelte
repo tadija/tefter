@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  let release = $state<{ version: string; build: string }>();
+  onMount(() => { api<{ version: string; build: string }>("version").then(value => release = value).catch(() => {}); });
   import { api, listing } from "./api";
   let {
     user,
@@ -45,6 +48,7 @@
   }}
 >
   <summary>Account and administration</summary>
+  {#if release}<p title={release.build}>Tefter {release.version} ({release.build.slice(0, 7)})</p>{/if}
   <p>Your participant ID <code>{user}</code></p>
   <form
     onsubmit={(e) => {
