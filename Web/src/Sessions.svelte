@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HarnessTerminal from "./HarnessTerminal.svelte";
   import Comments from "./Comments.svelte";
   import { onMount } from "svelte";
   import { api, listing } from "./api";
@@ -9,6 +10,7 @@
   let harnesses = $state<Harness[]>([]), sessions = $state<Session[]>([]);
   let selected = $state<Session>(), connection = $state(""), message = $state(""), task = $state(""), repo = $state("");
   type Review = {head: string; base: string; diff: string};
+  let terminalSession = $state("");
   let review = $state<Review>();
   async function gitAction(action: string) {
     if (!selected) return;
@@ -50,11 +52,18 @@
 <h2>Agent sessions</h2>
 {#if error}<p role="alert">{error}</p>{/if}
 {#if loading}<p>Loading…</p>{:else if !harnesses.length}<p>No execution connection authorized for you in this space. Space membership alone does not grant execution access.</p>{/if}
-<p>Structured conversation is saved by Tefter. This adapter sends the transcript on each turn; harness resume, live streaming, cancellation and TTY are unavailable. Each turn has a two-minute deadline.</p>
-<button disabled={busy} onclick={() => {selected = undefined; review = undefined;}}>New session</button>
-{#each sessions as session (session.id)}<button disabled={busy} onclick={() => {selected = session; review = undefined;}}>{session.id.slice(0,8)} · {session.status}</button>{/each}
+<p>Structured conversation is saved by Tefter. This adapter sends the transcript on each turn; an optional interactive terminal starts a separate harness process. Each turn has a two-minute deadline.</p>
+<button disabled={busy} onclick={() => {selected = undefined; review = undefined; terminalSession = "";}}>New session</button>
+{#each sessions as session (session.id)}<button disabled={busy} onclick={() => {selected = session; review = undefined; terminalSession = "";}}>{session.id.slice(0,8)} · {session.status}</button>{/each}
 {#if selected}
   <p>Status: {selected.status} · Initiator: {selected.initiator}</p>
+  {#if harnesses.find(h => h.id === selected?.connection)?.capabilities.tty && !["running","finished"].includes(selected.status)}
+    {#if terminalSession === selected.id}
+      <HarnessTerminal path={base()+`executions/${selected.id}/terminal`} onclose={() => terminalSession = ""} />
+    {:else}
+      <button onclick={() => terminalSession = selected!.id}>Open terminal</button>
+    {/if}
+  {/if}
   {#each selected.conversation as turn}<article><strong>{turn.role}</strong> <time>{turn.created}</time><div class="markdown">{@html preview(turn.text)}</div></article>{/each}
   {#if selected.repo}
     <p>Linked Repo: {selected.repo}. Worktrees are separate editing directories; they do not provide a security sandbox.</p>
@@ -67,7 +76,7 @@
     {/if}
   {/if}
   {#key selected.id}<Comments base={base()+`executions/${selected.id}/`} path="" {user} {people} />{/key}
-  <button disabled={busy || selected.status === "running" || selected.status === "finished"} onclick={finish}>Finish session</button>
+  <button disabled={busy || !!terminalSession || selected.status === "running" || selected.status === "finished"} onclick={finish}>Finish session</button>
 {/if}
 <form onsubmit={send}>
   {#if !selected}
@@ -76,5 +85,5 @@
     <label>Repo ID (optional) <input bind:value={repo} /></label>
   {/if}
   <label>Message <textarea bind:value={message} required maxlength="16384" disabled={busy}></textarea></label>
-  <button disabled={busy || !connection || selected?.status === "running" || selected?.status === "finished"}>{busy ? "Running…" : selected ? "Send" : "Start session"}</button>
+  <button disabled={busy || !!terminalSession || !connection || selected?.status === "running" || selected?.status === "finished"}>{busy ? "Running…" : selected ? "Send" : "Start session"}</button>
 </form>
