@@ -76,7 +76,7 @@ extension Identity {
 
   func harnessGrant(_ id: String, input: ExecutionGrantInput, remove: Bool, user: String) throws {
     try requireAdmin(user)
-    _ = try access(input.space, user: input.user)
+    if !remove { _ = try access(input.space, user: input.user) }
     guard !(try db.rows("SELECT id FROM harness_connections WHERE id=?", [id])).isEmpty else {
       throw HTTPError(.notFound)
     }
@@ -138,6 +138,7 @@ extension Identity {
         throw HTTPError(.notFound)
       }
     }
+    guard runningExecutions < 4 else { throw HTTPError(.tooManyRequests) }
     let id = UUID().uuidString, now = Self.timestamp()
     let record = ExecutionRecord(id: id, space: space, connection: input.connection, initiator: user,
       task: input.task, repo: input.repo, created: now, updated: now, status: "ready", conversation: [])
@@ -163,14 +164,14 @@ extension Identity {
     }
     let policy = try executionPolicy(record.connection, space: space, user: user)
     guard runningExecutions < 4 else { throw HTTPError(.tooManyRequests) }
-    record.conversation.append(ConversationTurn(role: "user", text: message, created: Self.timestamp()))
-    record.status = "running"; record.updated = Self.timestamp()
-    try save(record, to: executionDirectory(), name: id + ".json")
-    try audit(user, "message-execution", id)
-    runningExecutions += 1
-    defer { runningExecutions -= 1 }
     let work = try Directory(root: home.path).directory("runtime").directory("harness-work", create: true)
     _ = try work.directory(id, create: true)
+    record.conversation.append(ConversationTurn(role: "user", text: message, created: Self.timestamp()))
+    record.status = "running"; record.updated = Self.timestamp()
+    try audit(user, "message-execution", id)
+    try save(record, to: executionDirectory(), name: id + ".json")
+    runningExecutions += 1
+    defer { runningExecutions -= 1 }
     let prompt = "Continue this conversation. Reply to the final user message.\n" + record.conversation.map { $0.role + ": " + $0.text }.joined(separator: "\n\n")
     let result = await Subprocess.run(executable: policy["executable"]!, arguments: [
       "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral", "--skip-git-repo-check",
