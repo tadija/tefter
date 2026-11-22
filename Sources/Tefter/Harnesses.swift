@@ -12,6 +12,7 @@ struct HarnessInput: Decodable {
   let name: String
   let executable: String
   let credentialHome: String
+  let terminalExecutable: String?
   let allowAdHoc: Bool
 }
 struct ExecutionGrantInput: Decodable { let space: String; let user: String }
@@ -52,9 +53,9 @@ extension Identity {
     }
   }
 
-  static var codexCapabilities: [String: Bool] {
+  static func codexCapabilities(tty: Bool) -> [String: Bool] {
     ["start": true, "message": true, "status": true, "stream": false,
-     "cancel": false, "resume": false, "tty": false]
+     "cancel": false, "resume": false, "tty": tty]
   }
 
   func installHarness(_ input: HarnessInput, user: String) throws -> HarnessConnection {
@@ -64,14 +65,20 @@ extension Identity {
       !input.executable.contains("\0"), !input.credentialHome.contains("\0"),
       FileManager.default.isExecutableFile(atPath: input.executable)
     else { throw HTTPError(.badRequest) }
+    if let launcher = input.terminalExecutable {
+      guard launcher.hasPrefix("/"), !launcher.contains("\0"), FileManager.default.isExecutableFile(atPath: launcher) else { throw HTTPError(.badRequest) }
+    }
     _ = try Directory(root: input.credentialHome)
     let id = UUID().uuidString
     try db.transaction {
       try db.execute("INSERT INTO harness_connections VALUES(?,?,?,?,?)",
         [id, input.name, input.executable, input.credentialHome, input.allowAdHoc ? "1" : "0"])
+      if let launcher = input.terminalExecutable {
+        try db.execute("INSERT INTO harness_terminals VALUES(?,?)", [id, launcher])
+      }
       try audit(user, "install-harness", id)
     }
-    return HarnessConnection(id: id, name: input.name, adapter: "codex-exec-v1", capabilities: Self.codexCapabilities)
+    return HarnessConnection(id: id, name: input.name, adapter: "codex-exec-v1", capabilities: Self.codexCapabilities(tty: input.terminalExecutable != nil))
   }
 
   func harnessGrant(_ id: String, input: ExecutionGrantInput, remove: Bool, user: String) throws {
@@ -99,8 +106,8 @@ extension Identity {
 
   func harnesses(_ space: String, user: String) throws -> HarnessList {
     _ = try access(space, user: user)
-    return HarnessList(harnesses: try db.rows("SELECT id,name FROM harness_connections WHERE id IN (SELECT connection FROM execution_grants WHERE space=? AND user=?) ORDER BY id", [space, user]).map {
-      HarnessConnection(id: $0["id"]!, name: $0["name"]!, adapter: "codex-exec-v1", capabilities: Self.codexCapabilities)
+    return HarnessList(harnesses: try db.rows("SELECT id,name,EXISTS(SELECT 1 FROM harness_terminals WHERE connection=id) AS tty FROM harness_connections WHERE id IN (SELECT connection FROM execution_grants WHERE space=? AND user=?) ORDER BY id", [space, user]).map {
+      HarnessConnection(id: $0["id"]!, name: $0["name"]!, adapter: "codex-exec-v1", capabilities: Self.codexCapabilities(tty: $0["tty"] == "1"))
     })
   }
 
@@ -158,7 +165,7 @@ extension Identity {
   func messageExecution(_ id: String, space: String, message: String, user: String) async throws -> ExecutionRecord {
     try validateSessionMessage(message)
     var record = try execution(id, space: space, user: user)
-    guard record.status != "running", record.status != "finished", record.conversation.count < 100,
+    guard !activeTerminals.contains(id), record.status != "running", record.status != "finished", record.conversation.count < 100,
       record.conversation.reduce(0, { $0 + $1.text.utf8.count }) < 8 * 1024 * 1024 else {
       throw HTTPError(.conflict)
     }
@@ -204,7 +211,7 @@ extension Identity {
 
   func finishExecution(_ id: String, space: String, user: String) throws -> ExecutionRecord {
     var record = try execution(id, space: space, user: user)
-    guard record.status != "running" else { throw HTTPError(.conflict) }
+    guard !activeTerminals.contains(id), record.status != "running" else { throw HTTPError(.conflict) }
     record.status = "finished"; record.updated = Self.timestamp()
     try save(record, to: executionDirectory(), name: id + ".json")
     try audit(user, "finish-execution", id)
@@ -228,6 +235,9 @@ func registerHarnesses(_ router: Router<BasicRequestContext>, _ identity: Identi
   }
   api.get("spaces/:space/harnesses") { request, context in
     try await identity.harnesses(context.parameters.require("space"), user: identity.session(request).user)
+  }
+  api.post("spaces/:space/executions/:execution/terminal") { request, context in
+    try await identity.terminalTicket(context.parameters.require("execution"), space: context.parameters.require("space"), request: request)
   }
   api.get("spaces/:space/executions") { request, context in
     let page = try PageWindow(request)

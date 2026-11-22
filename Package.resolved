@@ -1,5 +1,5 @@
 {
-  "originHash" : "636fa476cf3e75b0e62380fcf93e8813cba345c4469f45c56cc84fe2a835317b",
+  "originHash" : "3ce4ffb850f34acc130723e6fe89adc409ff1e2b31012a001a441d871a9c94ab",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -251,6 +251,15 @@
       "state" : {
         "revision" : "8397a860c6955924b584c50c5265c6aac0970015",
         "version" : "2.14.4"
+      }
+    },
+    {
+      "identity" : "termspool",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tadija/termspool.git",
+      "state" : {
+        "revision" : "866b471969062e39c81acfc329e00029bcd9fa9a",
+        "version" : "0.1.0"
       }
     },
     {
