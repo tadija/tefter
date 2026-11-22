@@ -40,6 +40,9 @@ try {
   await page.getByLabel('Email',{exact:true}).first().fill(email);
   await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  const release = await (await fetch(url+'/api/v1/version')).json();
+  await page.getByText('Account and administration', {exact:true}).click();
+  await page.getByText(`Tefter ${release.version} (${release.build.slice(0,7)})`, {exact:true}).waitFor();
   await page.getByRole('button',{name:'Repos',exact:true}).click();
   await page.getByText('No repositories registered or granted to this space.').waitFor();
   await page.getByLabel('Name',{exact:true}).fill('Browser repository');
